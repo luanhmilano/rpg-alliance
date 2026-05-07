@@ -16,15 +16,54 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+type AuthMode = "email" | "phone";
+
 export function LoginForm({
   className,
   ...props
 }: React.ComponentPropsWithoutRef<"div">) {
+  const [mode, setMode] = useState<AuthMode>("email");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+
+  const navigateToPath = (path: string) => {
+    router.replace(path);
+    router.refresh();
+  };
+
+  const resolveSignedUserRoute = async () => {
+    const supabase = createClient();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      return "/auth/login";
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("approval_status")
+      .eq("id", user.id)
+      .single();
+
+    if (profileError && profileError.code !== "PGRST116") {
+      throw profileError;
+    }
+
+    if (!profile || profile.approval_status !== "APPROVED") {
+      return "/pending";
+    }
+
+    return "/dashboard";
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,13 +72,49 @@ export function LoginForm({
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+      if (mode === "email") {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        const destination = await resolveSignedUserRoute();
+        navigateToPath(destination);
+        return;
+      }
+
+      if (!otpSent) {
+        const { error } = await supabase.auth.signInWithOtp({
+          phone,
+          options: {
+            shouldCreateUser: false,
+          },
+        });
+
+        if (error) {
+          throw error;
+        }
+
+        setOtpSent(true);
+        return;
+      }
+
+      const { error } = await supabase.auth.verifyOtp({
+        phone,
+        token: otpCode,
+        type: "sms",
       });
-      if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
-      router.push("/protected");
+
+      if (error) {
+        throw error;
+      }
+
+      const destination = await resolveSignedUserRoute();
+      navigateToPath(destination);
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
@@ -52,45 +127,108 @@ export function LoginForm({
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>
-          <CardDescription>
-            Enter your email below to login to your account
-          </CardDescription>
+          <CardDescription>Login with email or phone number</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              <div className="grid gap-2">
-                <div className="flex items-center">
-                  <Label htmlFor="password">Password</Label>
-                  <Link
-                    href="/auth/forgot-password"
-                    className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
+                <Label>Method</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={mode === "email" ? "default" : "outline"}
+                    onClick={() => {
+                      setMode("email");
+                      setOtpSent(false);
+                      setOtpCode("");
+                    }}
                   >
-                    Forgot your password?
-                  </Link>
+                    Email
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={mode === "phone" ? "default" : "outline"}
+                    onClick={() => {
+                      setMode("phone");
+                      setOtpSent(false);
+                      setOtpCode("");
+                    }}
+                  >
+                    Phone
+                  </Button>
                 </div>
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
               </div>
+
+              {mode === "email" ? (
+                <>
+                  <div className="grid gap-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="m@example.com"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <div className="flex items-center">
+                      <Label htmlFor="password">Password</Label>
+                      <Link
+                        href="/auth/forgot-password"
+                        className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
+                      >
+                        Forgot your password?
+                      </Link>
+                    </div>
+                    <Input
+                      id="password"
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="grid gap-2">
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="+5511999999999"
+                      required
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                    />
+                  </div>
+                  {otpSent ? (
+                    <div className="grid gap-2">
+                      <Label htmlFor="otp">OTP code</Label>
+                      <Input
+                        id="otp"
+                        type="text"
+                        inputMode="numeric"
+                        placeholder="123456"
+                        required
+                        value={otpCode}
+                        onChange={(e) => setOtpCode(e.target.value)}
+                      />
+                    </div>
+                  ) : null}
+                </>
+              )}
+
               {error && <p className="text-sm text-red-500">{error}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Logging in..." : "Login"}
+                {isLoading
+                  ? "Working..."
+                  : mode === "phone" && !otpSent
+                    ? "Send OTP"
+                    : "Login"}
               </Button>
             </div>
             <div className="mt-4 text-center text-sm">

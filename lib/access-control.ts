@@ -1,0 +1,102 @@
+import { redirect } from "next/navigation";
+
+import { createClient } from "@/lib/supabase/server";
+
+export type AppRole = "KAGE" | "MEMBER";
+export type ApprovalStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export type AppProfile = {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  role: AppRole;
+  approval_status: ApprovalStatus;
+};
+
+export async function getAuthSession() {
+  const supabase = await createClient();
+  const { data, error } = await supabase.auth.getUser();
+
+  if (error || !data.user) {
+    return null;
+  }
+
+  return data.user;
+}
+
+export async function getCurrentProfile() {
+  const user = await getAuthSession();
+
+  if (!user) {
+    return null;
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id,email,phone,role,approval_status")
+    .eq("id", user.id)
+    .single();
+
+  if (error) {
+    // Backward compatibility for users created before the profiles trigger.
+    // PGRST116 means no rows were found for single().
+    if (error.code === "PGRST116") {
+      return {
+        id: user.id,
+        email: user.email ?? null,
+        phone: user.phone ?? null,
+        role: "MEMBER",
+        approval_status: "PENDING",
+      } as AppProfile;
+    }
+
+    return null;
+  }
+
+  if (!data) {
+    return {
+      id: user.id,
+      email: user.email ?? null,
+      phone: user.phone ?? null,
+      role: "MEMBER",
+      approval_status: "PENDING",
+    } as AppProfile;
+  }
+
+  return data as AppProfile;
+}
+
+export async function requireAuthenticatedUser() {
+  const user = await getAuthSession();
+
+  if (!user) {
+    redirect("/auth/login");
+  }
+
+  return user;
+}
+
+export async function requireApprovedProfile() {
+  const profile = await getCurrentProfile();
+
+  if (!profile) {
+    redirect("/auth/login");
+  }
+
+  if (profile.approval_status !== "APPROVED") {
+    redirect("/pending");
+  }
+
+  return profile;
+}
+
+export async function requireKageProfile() {
+  const profile = await requireApprovedProfile();
+
+  if (profile.role !== "KAGE") {
+    redirect("/dashboard");
+  }
+
+  return profile;
+}

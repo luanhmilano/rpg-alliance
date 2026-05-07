@@ -1,0 +1,86 @@
+export type Jutsu = {
+  id: string;
+  name: string;
+  type: "Ninjutsu" | "Taijutsu" | "Genjutsu" | "Fuinjutsu";
+  rank: "S" | "A" | "B" | "C" | "D";
+  description: string;
+  chakraCost: number;
+  difficulty: number;
+  handSeals: string[];
+  availableToRoles: Array<"KAGE" | "MEMBER">;
+};
+
+export const jutsusMock: Jutsu[] = [
+  {
+    id: "jutsu-001",
+    name: "Shadow Clone Jutsu",
+    type: "Ninjutsu",
+    rank: "B",
+    description:
+      "Creates physical chakra clones to scout, flank, and overwhelm opponents.",
+    chakraCost: 30,
+    difficulty: 5,
+    handSeals: ["Ram"],
+    availableToRoles: ["KAGE", "MEMBER"],
+  },
+  {
+    id: "jutsu-002",
+    name: "Rasengan",
+    type: "Ninjutsu",
+    rank: "A",
+    description:
+      "A compressed rotating chakra sphere that delivers a concentrated impact.",
+    chakraCost: 45,
+    difficulty: 7,
+    handSeals: [],
+    availableToRoles: ["KAGE", "MEMBER"],
+  },
+  {
+    id: "jutsu-003",
+    name: "Flying Thunder God",
+    type: "Fuinjutsu",
+    rank: "S",
+    description:
+      "Instantaneous movement to marked locations using high-level space-time seals.",
+    chakraCost: 70,
+    difficulty: 10,
+    handSeals: ["Boar", "Dog", "Bird", "Monkey", "Ram"],
+    availableToRoles: ["KAGE"],
+  },
+  {
+    id: "jutsu-004",
+    name: "Chidori",
+    type: "Ninjutsu",
+    rank: "A",
+    description:
+      "High-speed lightning release thrust focused into a piercing strike.",
+    chakraCost: 40,
+    difficulty: 8,
+    handSeals: ["Ox", "Rabbit", "Monkey"],
+    availableToRoles: ["KAGE", "MEMBER"],
+  },
+  {
+    id: "jutsu-005",
+    name: "Tsukuyomi",
+    type: "Genjutsu",
+    rank: "S",
+    description:
+      "A lethal ocular illusion that distorts the target's perception of time.",
+    chakraCost: 80,
+    difficulty: 10,
+    handSeals: [],
+    availableToRoles: ["KAGE"],
+  },
+  {
+    id: "jutsu-006",
+    name: "Primary Lotus",
+    type: "Taijutsu",
+    rank: "C",
+    description:
+      "A close-range grappling sequence ending in a high-impact aerial slam.",
+    chakraCost: 20,
+    difficulty: 4,
+    handSeals: [],
+    availableToRoles: ["KAGE", "MEMBER"],
+  },
+];
