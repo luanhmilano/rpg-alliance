@@ -28,8 +28,9 @@ export function JutsuCard({ jutsu }: { jutsu: Jutsu }) {
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <p className="text-muted-foreground">{jutsu.description}</p>
-        <div className="flex items-center gap-4">
+        <div className="grid grid-cols-2 gap-2">
           <span>Chakra: {jutsu.chakraCost}</span>
+          <span>Price: {jutsu.price}</span>
           <span>Difficulty: {jutsu.difficulty}/10</span>
         </div>
         {jutsu.handSeals.length > 0 ? (
