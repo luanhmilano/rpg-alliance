@@ -1,8 +1,8 @@
 export type Jutsu = {
   id: string;
   name: string;
-  type: "Ninjutsu" | "Taijutsu" | "Genjutsu" | "Fuinjutsu";
-  rank: "S" | "A" | "B" | "C" | "D";
+  type: "Ninjutsu" | "Taijutsu" | "Dojutsu" | "Genjutsu";
+  rank: "C" | "B" | "A" | "S" | "SS" | "SSS";
   description: string;
   chakraCost: number;
   price: number;
@@ -41,7 +41,7 @@ export const jutsusMock: Jutsu[] = [
   {
     id: "jutsu-003",
     name: "Flying Thunder God",
-    type: "Fuinjutsu",
+    type: "Ninjutsu",
     rank: "S",
     description:
       "Instantaneous movement to marked locations using high-level space-time seals.",

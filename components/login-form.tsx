@@ -24,9 +24,6 @@ export function LoginForm({
 }: React.ComponentPropsWithoutRef<"div">) {
   const [mode, setMode] = useState<AuthMode>("email");
   const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [otpCode, setOtpCode] = useState("");
-  const [otpSent, setOtpSent] = useState(false);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -87,28 +84,6 @@ export function LoginForm({
         return;
       }
 
-      if (!otpSent) {
-        const { error } = await supabase.auth.signInWithOtp({
-          phone,
-          options: {
-            shouldCreateUser: false,
-          },
-        });
-
-        if (error) {
-          throw error;
-        }
-
-        setOtpSent(true);
-        return;
-      }
-
-      const { error } = await supabase.auth.verifyOtp({
-        phone,
-        token: otpCode,
-        type: "sms",
-      });
-
       if (error) {
         throw error;
       }
@@ -127,35 +102,22 @@ export function LoginForm({
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>
-          <CardDescription>Login with email or phone number</CardDescription>
+          <CardDescription>Faça login com seu email cadastrado</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleLogin}>
             <div className="flex flex-col gap-6">
               <div className="grid gap-2">
-                <Label>Method</Label>
+                <Label>Método</Label>
                 <div className="flex gap-2">
                   <Button
                     type="button"
                     variant={mode === "email" ? "default" : "outline"}
                     onClick={() => {
                       setMode("email");
-                      setOtpSent(false);
-                      setOtpCode("");
                     }}
                   >
                     Email
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={mode === "phone" ? "default" : "outline"}
-                    onClick={() => {
-                      setMode("phone");
-                      setOtpSent(false);
-                      setOtpCode("");
-                    }}
-                  >
-                    Phone
                   </Button>
                 </div>
               </div>
@@ -175,12 +137,12 @@ export function LoginForm({
                   </div>
                   <div className="grid gap-2">
                     <div className="flex items-center">
-                      <Label htmlFor="password">Password</Label>
+                      <Label htmlFor="password">Senha</Label>
                       <Link
                         href="/auth/forgot-password"
                         className="ml-auto inline-block text-sm underline-offset-4 hover:underline"
                       >
-                        Forgot your password?
+                        Esqueceu a senha?
                       </Link>
                     </div>
                     <Input
@@ -194,31 +156,6 @@ export function LoginForm({
                 </>
               ) : (
                 <>
-                  <div className="grid gap-2">
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="+5511999999999"
-                      required
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                    />
-                  </div>
-                  {otpSent ? (
-                    <div className="grid gap-2">
-                      <Label htmlFor="otp">OTP code</Label>
-                      <Input
-                        id="otp"
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="123456"
-                        required
-                        value={otpCode}
-                        onChange={(e) => setOtpCode(e.target.value)}
-                      />
-                    </div>
-                  ) : null}
                 </>
               )}
 
@@ -226,18 +163,18 @@ export function LoginForm({
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading
                   ? "Working..."
-                  : mode === "phone" && !otpSent
+                  : mode === "phone"
                     ? "Send OTP"
                     : "Login"}
               </Button>
             </div>
             <div className="mt-4 text-center text-sm">
-              Don&apos;t have an account?{" "}
+              Não tem conta?{" "}
               <Link
                 href="/auth/sign-up"
                 className="underline underline-offset-4"
               >
-                Sign up
+                Cadastro
               </Link>
             </div>
           </form>

@@ -6,19 +6,40 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { Jutsu } from "@/data/jutsus-mock";
+import type { JutsuModel } from "@/lib/jutsus/query-parser";
+import Link from "next/link";
 
-const rankVariantMap: Record<Jutsu["rank"], "default" | "secondary" | "destructive" | "outline"> = {
+const rankVariantMap: Record<JutsuModel["rank"], "default" | "secondary" | "destructive" | "outline"> = {
+  SSS: "destructive",
+  SS: "destructive",
   S: "destructive",
   A: "default",
   B: "secondary",
   C: "outline",
-  D: "outline",
 };
 
-export function JutsuCard({ jutsu }: { jutsu: Jutsu }) {
-  return (
-    <Card className="h-full">
+export function JutsuCard({
+  jutsu,
+  onOpen,
+  href,
+}: {
+  jutsu: JutsuModel;
+  onOpen?: (jutsu: JutsuModel) => void;
+  href?: string;
+}) {
+  const cardContent = (
+    <Card
+      className="h-full cursor-pointer transition-transform hover:-translate-y-0.5 hover:shadow-md"
+      onClick={() => onOpen?.(jutsu)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen?.(jutsu);
+        }
+      }}
+    >
       <CardHeader className="space-y-2">
         <div className="flex items-center justify-between gap-3">
           <CardTitle className="text-lg">{jutsu.name}</CardTitle>
@@ -29,18 +50,21 @@ export function JutsuCard({ jutsu }: { jutsu: Jutsu }) {
       <CardContent className="space-y-3 text-sm">
         <p className="text-muted-foreground">{jutsu.description}</p>
         <div className="grid grid-cols-2 gap-2">
-          <span>Chakra: {jutsu.chakraCost}</span>
+          <span>Chakra: {jutsu.chackra}</span>
           <span>Price: {jutsu.price}</span>
-          <span>Difficulty: {jutsu.difficulty}/10</span>
+          <span>Cooldown: {jutsu.cooldown !== null ? `${jutsu.cooldown}s` : "N/A"}</span>
+          <span>ATK: {jutsu.atk ?? "N/A"}</span>
         </div>
-        {jutsu.handSeals.length > 0 ? (
-          <p className="text-xs text-muted-foreground">
-            Hand seals: {jutsu.handSeals.join(", ")}
-          </p>
-        ) : (
-          <p className="text-xs text-muted-foreground">Hand seals: None</p>
-        )}
+        <p className="text-xs text-muted-foreground">
+          Targets: {jutsu.targets ?? "Not informed"}
+        </p>
       </CardContent>
     </Card>
   );
+
+  if (href) {
+    return <Link href={href}>{cardContent}</Link>;
+  }
+
+  return cardContent;
 }

@@ -1,9 +1,9 @@
 import { Suspense } from "react";
-import { InfoIcon } from "lucide-react";
+import { headers } from "next/headers";
 
 import { JutsusGrid } from "@/components/jutsus/jutsus-grid";
-import { jutsusMock } from "@/data/jutsus-mock";
 import { requireApprovedProfile } from "@/lib/access-control";
+import type { JutsuModel } from "@/lib/jutsus/query-parser";
 
 export default function DashboardPage() {
   return (
@@ -12,18 +12,28 @@ export default function DashboardPage() {
     </Suspense>
   );
 }
-
 async function DashboardContent() {
   const profile = await requireApprovedProfile();
+  const requestHeaders = await headers();
+  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
+  const protocol = requestHeaders.get("x-forwarded-proto") ?? "http";
+
+  const baseUrl = host ? `${protocol}://${host}` : "http://localhost:3000";
+
+  const response = await fetch(`${baseUrl}/api/jutsus`, {
+    cache: "no-store",
+  });
+
+  let jutsus: JutsuModel[] = [];
+
+  if (response.ok) {
+    const payload = (await response.json()) as { data?: JutsuModel[] };
+    jutsus = payload.data ?? [];
+  }
 
   return (
     <div className="flex-1 w-full flex flex-col gap-8">
       <div className="w-full">
-        <div className="bg-accent text-sm p-3 px-5 rounded-md text-foreground flex gap-3 items-center">
-          <InfoIcon size="16" strokeWidth={2} />
-          JUTSUS dashboard loaded from mock data. This source will be swapped
-          to Supabase table queries in the next phase.
-        </div>
       </div>
       <div className="space-y-1">
         <h1 className="font-bold text-3xl">JUTSUS</h1>
@@ -32,7 +42,7 @@ async function DashboardContent() {
         </p>
       </div>
       <div>
-        <JutsusGrid jutsus={jutsusMock} role={profile.role} />
+        <JutsusGrid jutsus={jutsus} role={profile.role} />
       </div>
     </div>
   );
