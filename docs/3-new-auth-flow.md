@@ -16,10 +16,10 @@ A arquitetura de autenticação foi simplificada:
 Usuário preenche formulário
   ↓
 API /api/auth/signup:
-  1. Cria user em auth.users (Supabase)
-  2. Valida village, character, role no banco
-  3. Cria registro em players com todos os dados
-  4. **FALHA** se village/character não existirem
+  1. Valida village e character em tabelas públicas
+  2. Cria user em auth.users (Supabase)
+  3. Trigger do banco cria o registro em players
+  4. **FALHA** se village/character não existirem ou se MEMBER não estiver cadastrado
   ↓
 Usuário é criado como MEMBER com approved=false
 ```
@@ -48,6 +48,7 @@ Usuário consegue acessar /dashboard
 ## Estrutura de Dados
 
 ### auth.users (Supabase Internal)
+
 ```
 id (uuid)
 email (text unique)
@@ -56,6 +57,7 @@ password_hash (text)
 ```
 
 ### public.players
+
 ```
 id (uuid) → FK para auth.users(id)
 email (text unique)
@@ -67,18 +69,21 @@ approved (boolean) → controls access
 ```
 
 ### public.roles
+
 ```
 id (uuid)
 name (text) → 'KAGE', 'MEMBER'
 ```
 
 ### public.villages
+
 ```
 id (uuid)
 name (text)
 ```
 
 ### public.characters
+
 ```
 id (uuid)
 name (text)
@@ -97,24 +102,24 @@ INSERT INTO public.roles (name) VALUES ('KAGE'), ('MEMBER')
 ON CONFLICT (name) DO NOTHING;
 
 -- Villages
-INSERT INTO public.villages (name) VALUES 
-  ('Vila da Folha'), 
-  ('Vila da Areia'), 
-  ('Vila da Nevoa'), 
-  ('Vila da Nuvem'), 
+INSERT INTO public.villages (name) VALUES
+  ('Vila da Folha'),
+  ('Vila da Areia'),
+  ('Vila da Nevoa'),
+  ('Vila da Nuvem'),
   ('Vila da Pedra')
 ON CONFLICT (name) DO NOTHING;
 
 -- Characters
-INSERT INTO public.characters (name, avatar_url) VALUES 
-  ('Naruto Uzumaki', NULL), 
-  ('Sasuke Uchiha', NULL), 
+INSERT INTO public.characters (name, avatar_url) VALUES
+  ('Naruto Uzumaki', NULL),
+  ('Sasuke Uchiha', NULL),
   ('Sakura Haruno', NULL),
-  ('Kakashi Hatake', NULL), 
-  ('Gaara', NULL), 
+  ('Kakashi Hatake', NULL),
+  ('Gaara', NULL),
   ('Itachi Uchiha', NULL),
-  ('Jiraiya', NULL), 
-  ('Tsunade', NULL), 
+  ('Jiraiya', NULL),
+  ('Tsunade', NULL),
   ('Shikamaru Nara', NULL),
   ('Hinata Hyuga', NULL)
 ON CONFLICT (name) DO NOTHING;
@@ -136,9 +141,10 @@ ON CONFLICT (name) DO NOTHING;
 ### Passo 3: Aprovar usuário (Admin)
 
 Execute:
+
 ```sql
-UPDATE public.players 
-SET approved = true 
+UPDATE public.players
+SET approved = true
 WHERE email = 'teste@example.com';
 ```
 
@@ -158,14 +164,15 @@ WHERE email = 'teste@example.com';
 
 ## Segurança
 
-- **RLS**: Desabilitado em `players` (segurança é por validação de autenticação no app)
-- **Validation**: Todas as chamadas à API validam role, village, character
+- **RLS**: Habilitado em `roles`, `villages`, `characters` e `players`
+- **Validation**: A API valida village/character; o banco valida MEMBER no trigger
 - **Email unique**: Banco garante unicidade de email em players
 - **FK constraints**: role_id, village_id, character_id com restrict/set null
 
 ## Se Houver Erro
 
 1. Verifique se villages, characters e roles existem:
+
 ```sql
 SELECT * FROM public.villages;
 SELECT * FROM public.characters;
@@ -173,11 +180,13 @@ SELECT * FROM public.roles;
 ```
 
 2. Verifique se o player foi criado após signup:
+
 ```sql
 SELECT * FROM public.players WHERE email = 'seu-email@example.com';
 ```
 
 3. Verifique status de aprovação:
+
 ```sql
 SELECT email, approved FROM public.players;
 ```

@@ -3,6 +3,7 @@
 Naruto-inspired RPG web app built with Next.js and Supabase.
 
 The app includes:
+
 - Public landing page at /
 - Authentication and signup flow
 - Approval gate for new users (PENDING, APPROVED, REJECTED)
@@ -22,6 +23,7 @@ The app includes:
 ## Main Routes
 
 Public/Auth:
+
 - / (landing page)
 - /auth/login
 - /auth/sign-up
@@ -32,6 +34,7 @@ Public/Auth:
 - /auth/error
 
 Protected:
+
 - /pending (users waiting for approval)
 - /dashboard (jutsu list + filters)
 - /dashboard/jutsus/[id] (jutsu detail)
@@ -40,6 +43,7 @@ Protected:
 - /dashboard/approvals (KAGE only)
 
 API:
+
 - /api/jutsus (GET public, POST KAGE)
 - /api/jutsus/[id] (GET public, PUT/PATCH/DELETE KAGE)
 
@@ -57,15 +61,19 @@ API:
 Migration files are in lib/supabase/migrations:
 
 1. auth-and-roles.sql
+
 - Creates profiles table, role and approval guards, RLS policies, and triggers.
 
 2. 02_rpg_expansion.sql
+
 - Adds RPG profile fields and jutsu/update model expansion.
 
 3. 03_jutsu_model_alignment.sql
+
 - Aligns jutsu schema to current app model.
 
 4. 05_jutsus_public_get.sql
+
 - Allows anonymous/public SELECT on jutsus for GET endpoints.
 
 ### Important setup note
@@ -118,6 +126,7 @@ npm run lint
 ## Current UX Theme
 
 The interface uses a custom RPG palette:
+
 - Primary red: #9b2230
 - Accent orange: #ed7138
 - Highlight yellow: #e2e11e
