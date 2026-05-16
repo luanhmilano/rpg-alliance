@@ -29,8 +29,8 @@ Model jutsus and summonings in a relational way, keeping consistency for both si
 | phone | text | No | Optional official user verification |
 | character_id | uuid | No | FK to Characters |
 | village_id | uuid | No | FK to Villages |
-| created_at | timestamp | Yes | Creation timestamp |
-| updated_at | timestamp | Yes | Update timestamp |
+| created_at | timestamptz | Yes | Creation timestamp |
+| updated_at | timestamptz | Yes | Update timestamp |
 
 ### 2. Roles
 
@@ -38,8 +38,8 @@ Model jutsus and summonings in a relational way, keeping consistency for both si
 | --- | --- | --- | --- |
 | id | uuid | Yes | Role PK |
 | name | text | Yes | Example: KAGE, MEMBER |
-| created_at | timestamp | Yes | Creation timestamp |
-| updated_at | timestamp | Yes | Update timestamp |
+| created_at | timestamptz | Yes | Creation timestamp |
+| updated_at | timestamptz | Yes | Update timestamp |
 
 ### 3. Characters
 
@@ -48,8 +48,8 @@ Model jutsus and summonings in a relational way, keeping consistency for both si
 | id | uuid | Yes | Character PK |
 | name | text | Yes | Character name |
 | avatar_url | text | No | Avatar image URL |
-| created_at | timestamp | Yes | Creation timestamp |
-| updated_at | timestamp | Yes | Update timestamp |
+| created_at | timestamptz | Yes | Creation timestamp |
+| updated_at | timestamptz | Yes | Update timestamp |
 
 ### 4. Villages
 
@@ -57,8 +57,8 @@ Model jutsus and summonings in a relational way, keeping consistency for both si
 | --- | --- | --- | --- |
 | id | uuid | Yes | Village PK |
 | name | text | Yes | Village name |
-| created_at | timestamp | Yes | Creation timestamp |
-| updated_at | timestamp | Yes | Update timestamp |
+| created_at | timestamptz | Yes | Creation timestamp |
+| updated_at | timestamptz | Yes | Update timestamp |
 
 ### 5. Ranks
 
@@ -66,8 +66,8 @@ Model jutsus and summonings in a relational way, keeping consistency for both si
 | --- | --- | --- | --- |
 | id | uuid | Yes | Rank PK |
 | value | text | Yes | C, B, A, S, SS, SSS |
-| created_at | timestamp | Yes | Creation timestamp |
-| updated_at | timestamp | Yes | Update timestamp |
+| created_at | timestamptz | Yes | Creation timestamp |
+| updated_at | timestamptz | Yes | Update timestamp |
 
 ### 6. Techniques (Base)
 
@@ -82,8 +82,8 @@ Base table to represent any technique: jutsu or summoning.
 | link | text | No | Reference URL |
 | observations | text | No | General notes |
 | updated_by | uuid | No | FK to Players (last editor) |
-| created_at | timestamp | Yes | Creation timestamp |
-| updated_at | timestamp | Yes | Update timestamp |
+| created_at | timestamptz | Yes | Creation timestamp |
+| updated_at | timestamptz | Yes | Update timestamp |
 
 ### 7. Jutsus
 
@@ -112,7 +112,7 @@ Represents one-time, activation, and upkeep-per-turn costs.
 | resource | text | Yes | Example: CK, HP |
 | amount | numeric | Yes | Cost value |
 | frequency | text | Yes | ONE_TIME, ACTIVATION, PER_TURN |
-| created_at | timestamp | Yes | Creation timestamp |
+| created_at | timestamptz | Yes | Creation timestamp |
 
 ### 10. Technique_Limits
 
@@ -197,12 +197,14 @@ Technique change history/audit.
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
 | id | uuid | Yes | Event PK |
-| technique_id | uuid | Yes | FK to Techniques |
-| changed_by | uuid | Yes | FK to Players |
+| event_type | text | Yes | INSERT, UPDATE, DELETE |
+| technique_id | uuid | No | FK to Techniques (kept nullable for delete history retention) |
+| technique_name_snapshot | text | Yes | Technique name at event time |
+| changed_by | uuid | No | FK to Players |
 | changed_fields | text[] | Yes | Updated fields |
-| before_snapshot | json | No | Previous state |
-| after_snapshot | json | No | New state |
-| created_at | timestamp | Yes | Creation timestamp |
+| before_snapshot | jsonb | No | Previous state |
+| after_snapshot | jsonb | No | New state |
+| created_at | timestamptz | Yes | Creation timestamp |
 
 ## Modeling Rules (Documentation)
 
@@ -210,3 +212,5 @@ Technique change history/audit.
 - An effect may represent fixed attack (SET), buff (ADD), or defense/barrier.
 - Special values such as "Unlimited" and "Instant Regeneration" are stored in Technique_Effect_Values.
 - Turn limits and per-turn costs are optional and only exist for techniques that require this control.
+- Technique names are globally unique (independent of kind).
+- Technique update history must be preserved even when a technique is deleted.
