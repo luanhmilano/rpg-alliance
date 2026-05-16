@@ -13,21 +13,39 @@ async function requireKageForApi() {
   } = await supabase.auth.getUser();
 
   if (userError || !user) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+    return {
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    };
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("role,approval_status")
+  const { data: player, error: playerError } = await supabase
+    .from("players")
+    .select("role_id,approved")
     .eq("id", user.id)
     .single();
 
-  if (profileError || !profile) {
-    return { error: NextResponse.json({ error: "Profile not found" }, { status: 403 }) };
+  if (playerError || !player) {
+    return {
+      error: NextResponse.json({ error: "Profile not found" }, { status: 403 }),
+    };
   }
 
-  if (profile.approval_status !== "APPROVED" || profile.role !== "KAGE") {
-    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
+  if (player.approved !== true) {
+    return {
+      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    };
+  }
+
+  const { data: roleRow } = await supabase
+    .from("roles")
+    .select("name")
+    .eq("id", player.role_id)
+    .maybeSingle();
+
+  if (!roleRow || roleRow.name !== "KAGE") {
+    return {
+      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    };
   }
 
   return { supabase, userId: user.id };
@@ -37,13 +55,20 @@ export async function GET(_: Request, { params }: Params) {
   const { id } = await params;
   const supabase = await createClient();
 
-  const { data, error } = await supabase.from("jutsus").select("*").eq("id", id).single();
+  const { data, error } = await supabase
+    .from("jutsus")
+    .select("*")
+    .eq("id", id)
+    .single();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 404 });
   }
 
-  return NextResponse.json({ data: normalizeJutsuList([data as Record<string, unknown>])[0] }, { status: 200 });
+  return NextResponse.json(
+    { data: normalizeJutsuList([data as Record<string, unknown>])[0] },
+    { status: 200 },
+  );
 }
 
 export async function PUT(request: Request, { params }: Params) {
@@ -85,7 +110,10 @@ export async function PUT(request: Request, { params }: Params) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  return NextResponse.json({ data: normalizeJutsuList([data as Record<string, unknown>])[0] }, { status: 200 });
+  return NextResponse.json(
+    { data: normalizeJutsuList([data as Record<string, unknown>])[0] },
+    { status: 200 },
+  );
 }
 
 export async function PATCH(request: Request, { params }: Params) {
@@ -113,7 +141,10 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  return NextResponse.json({ data: normalizeJutsuList([data as Record<string, unknown>])[0] }, { status: 200 });
+  return NextResponse.json(
+    { data: normalizeJutsuList([data as Record<string, unknown>])[0] },
+    { status: 200 },
+  );
 }
 
 export async function DELETE(_: Request, { params }: Params) {

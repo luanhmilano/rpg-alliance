@@ -22,11 +22,19 @@ async function updateApprovalStatus(formData: FormData) {
   }
 
   const supabase = await createClient();
+  const { data: memberRole } = await supabase
+    .from("roles")
+    .select("id")
+    .eq("name", "MEMBER")
+    .maybeSingle();
+
+  if (!memberRole?.id) return;
+
   await supabase
-    .from("profiles")
-    .update({ approval_status: status })
+    .from("players")
+    .update({ approved: status === "APPROVED" })
     .eq("id", profileId)
-    .eq("role", "MEMBER");
+    .eq("role_id", memberRole.id);
 
   revalidatePath("/dashboard/approvals");
   revalidatePath("/pending");
@@ -35,7 +43,13 @@ async function updateApprovalStatus(formData: FormData) {
 
 export default function DashboardApprovalsPage() {
   return (
-    <Suspense fallback={<div className="text-sm text-muted-foreground">Loading approvals...</div>}>
+    <Suspense
+      fallback={
+        <div className="text-sm text-muted-foreground">
+          Loading approvals...
+        </div>
+      }
+    >
       <ApprovalsContent />
     </Suspense>
   );
@@ -46,9 +60,9 @@ async function ApprovalsContent() {
 
   const supabase = await createClient();
   const { data: pendingProfiles, error } = await supabase
-    .from("profiles")
-    .select("id,email,phone,role,approval_status,created_at")
-    .eq("approval_status", "PENDING")
+    .from("players")
+    .select("id,email,phone,role_id,approved,created_at,roles(name)")
+    .eq("approved", false)
     .order("created_at", { ascending: true });
 
   if (error) {
@@ -96,16 +110,28 @@ async function ApprovalsContent() {
                       <td className="py-3 pr-4">
                         {profile.email ?? profile.phone ?? profile.id}
                       </td>
-                      <td className="py-3 pr-4">{profile.role}</td>
-                      <td className="py-3 pr-4">{profile.approval_status}</td>
+                      <td className="py-3 pr-4">
+                        {profile.roles?.name ?? profile.role_id ?? "MEMBER"}
+                      </td>
+                      <td className="py-3 pr-4">
+                        {profile.approved ? "APPROVED" : "PENDING"}
+                      </td>
                       <td className="py-3 pr-4">
                         {new Date(profile.created_at).toLocaleString()}
                       </td>
                       <td className="py-3">
                         <div className="flex flex-wrap gap-2">
                           <form action={updateApprovalStatus}>
-                            <input type="hidden" name="profileId" value={profile.id} />
-                            <input type="hidden" name="status" value="APPROVED" />
+                            <input
+                              type="hidden"
+                              name="profileId"
+                              value={profile.id}
+                            />
+                            <input
+                              type="hidden"
+                              name="status"
+                              value="APPROVED"
+                            />
                             <button
                               className="rounded border px-3 py-1 text-xs hover:bg-accent"
                               type="submit"
@@ -114,8 +140,16 @@ async function ApprovalsContent() {
                             </button>
                           </form>
                           <form action={updateApprovalStatus}>
-                            <input type="hidden" name="profileId" value={profile.id} />
-                            <input type="hidden" name="status" value="REJECTED" />
+                            <input
+                              type="hidden"
+                              name="profileId"
+                              value={profile.id}
+                            />
+                            <input
+                              type="hidden"
+                              name="status"
+                              value="REJECTED"
+                            />
                             <button
                               className="rounded border px-3 py-1 text-xs hover:bg-accent"
                               type="submit"

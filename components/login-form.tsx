@@ -46,8 +46,8 @@ export function LoginForm({
     }
 
     const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("approval_status")
+      .from("players")
+      .select("approved")
       .eq("id", user.id)
       .single();
 
@@ -55,7 +55,7 @@ export function LoginForm({
       throw profileError;
     }
 
-    if (!profile || profile.approval_status !== "APPROVED") {
+    if (!profile || profile.approved !== true) {
       return "/pending";
     }
 
@@ -155,8 +155,7 @@ export function LoginForm({
                   </div>
                 </>
               ) : (
-                <>
-                </>
+                <></>
               )}
 
               {error && <p className="text-sm text-red-500">{error}</p>}

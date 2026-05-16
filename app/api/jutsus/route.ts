@@ -11,21 +11,39 @@ async function requireKageForApi() {
   } = await supabase.auth.getUser();
 
   if (userError || !user) {
-    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+    return {
+      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
+    };
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("role,approval_status")
+  const { data: player, error: playerError } = await supabase
+    .from("players")
+    .select("role_id,approved")
     .eq("id", user.id)
     .single();
 
-  if (profileError || !profile) {
-    return { error: NextResponse.json({ error: "Profile not found" }, { status: 403 }) };
+  if (playerError || !player) {
+    return {
+      error: NextResponse.json({ error: "Profile not found" }, { status: 403 }),
+    };
   }
 
-  if (profile.approval_status !== "APPROVED" || profile.role !== "KAGE") {
-    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
+  if (player.approved !== true) {
+    return {
+      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    };
+  }
+
+  const { data: roleRow } = await supabase
+    .from("roles")
+    .select("name")
+    .eq("id", player.role_id)
+    .maybeSingle();
+
+  if (!roleRow || roleRow.name !== "KAGE") {
+    return {
+      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
+    };
   }
 
   return { supabase, userId: user.id };
@@ -33,15 +51,20 @@ async function requireKageForApi() {
 
 export async function GET() {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("jutsus").select("*").order("name", {
-    ascending: true,
-  });
+  const { data, error } = await supabase
+    .from("jutsus")
+    .select("*")
+    .order("name", {
+      ascending: true,
+    });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  const normalized = normalizeJutsuList((data ?? []) as Record<string, unknown>[]);
+  const normalized = normalizeJutsuList(
+    (data ?? []) as Record<string, unknown>[],
+  );
   return NextResponse.json({ data: normalized }, { status: 200 });
 }
 
@@ -82,5 +105,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  return NextResponse.json({ data: normalizeJutsuList([data as Record<string, unknown>])[0] }, { status: 201 });
+  return NextResponse.json(
+    { data: normalizeJutsuList([data as Record<string, unknown>])[0] },
+    { status: 201 },
+  );
 }

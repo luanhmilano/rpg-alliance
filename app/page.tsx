@@ -8,18 +8,15 @@ import { Suspense } from "react";
 const alliancePillars = [
   {
     title: "Sunagakure",
-    description:
-      "Aldeia da Areia",
+    description: "Aldeia da Areia",
   },
   {
     title: "Kirigakure",
-    description:
-      "Aldeia da Névoa",
+    description: "Aldeia da Névoa",
   },
   {
     title: "Konogakure",
-    description:
-      "Aldeia da Folha",
+    description: "Aldeia da Folha",
   },
 ];
 
@@ -32,12 +29,12 @@ async function RootContent() {
   // If already authenticated, redirect to pending or dashboard based on approval status
   if (data?.claims) {
     const { data: profile, error: profileError } = await supabase
-      .from("profiles")
-      .select("approval_status")
+      .from("players")
+      .select("approved")
       .eq("id", data.claims.sub)
       .single();
 
-    if (!profileError && profile?.approval_status === "APPROVED") {
+    if (!profileError && profile?.approved === true) {
       redirect("/dashboard");
     } else {
       redirect("/pending");
@@ -68,7 +65,11 @@ async function RootContent() {
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Button asChild size="lg" className="h-11 px-8 text-sm uppercase tracking-[0.22em]">
+              <Button
+                asChild
+                size="lg"
+                className="h-11 px-8 text-sm uppercase tracking-[0.22em]"
+              >
                 <Link href="/auth/login">Login</Link>
               </Button>
               <Button
@@ -83,16 +84,28 @@ async function RootContent() {
 
             <div className="grid gap-3 sm:grid-cols-3">
               <div className="rounded-xl border border-border bg-card/80 p-4 backdrop-blur">
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Gameplay</p>
-                <p className="mt-2 text-lg font-semibold">Ganhe Ryos fazendo missões.</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
+                  Gameplay
+                </p>
+                <p className="mt-2 text-lg font-semibold">
+                  Ganhe Ryos fazendo missões.
+                </p>
               </div>
               <div className="rounded-xl border border-border bg-card/80 p-4 backdrop-blur">
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Jutsus</p>
-                <p className="mt-2 text-lg font-semibold">Compre jutsus e técnicas do seu personagem.</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
+                  Jutsus
+                </p>
+                <p className="mt-2 text-lg font-semibold">
+                  Compre jutsus e técnicas do seu personagem.
+                </p>
               </div>
               <div className="rounded-xl border border-border bg-card/80 p-4 backdrop-blur">
-                <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Aliança</p>
-                <p className="mt-2 text-lg font-semibold">Conheça novas pessoas.</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
+                  Aliança
+                </p>
+                <p className="mt-2 text-lg font-semibold">
+                  Conheça novas pessoas.
+                </p>
               </div>
             </div>
           </div>
@@ -102,7 +115,9 @@ async function RootContent() {
             <div className="relative overflow-hidden rounded-[2rem] border border-border/80 bg-card/85 p-6 shadow-2xl backdrop-blur">
               <div className="flex items-center justify-between border-b border-border/80 pb-4">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.26em] text-primary">Mission Board</p>
+                  <p className="text-xs uppercase tracking-[0.26em] text-primary">
+                    Mission Board
+                  </p>
                   <h2 className="mt-2 text-2xl font-black uppercase tracking-[-0.04em]">
                     Shinobi status
                   </h2>
@@ -114,7 +129,9 @@ async function RootContent() {
 
               <div className="mt-6 space-y-4">
                 <div className="rounded-2xl bg-background p-4 ring-1 ring-border">
-                  <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Clãs</p>
+                  <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">
+                    Clãs
+                  </p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {featuredClans.map((clan) => (
                       <span
@@ -129,15 +146,21 @@ async function RootContent() {
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-2xl bg-primary p-4 text-primary-foreground">
-                    <p className="text-xs uppercase tracking-[0.24em] text-primary-foreground/70">Site</p>
+                    <p className="text-xs uppercase tracking-[0.24em] text-primary-foreground/70">
+                      Site
+                    </p>
                     <p className="mt-3 text-3xl font-black">Gestão</p>
                     <p className="mt-2 text-sm text-primary-foreground/80">
                       Gestão de Ninjas e controle das vilas.
                     </p>
                   </div>
                   <div className="rounded-2xl bg-black p-4 text-white">
-                    <p className="text-xs uppercase tracking-[0.24em] text-white/60">Pergaminho</p>
-                    <p className="mt-3 text-3xl font-black text-highlight">Vários jutsus</p>
+                    <p className="text-xs uppercase tracking-[0.24em] text-white/60">
+                      Pergaminho
+                    </p>
+                    <p className="mt-3 text-3xl font-black text-highlight">
+                      Vários jutsus
+                    </p>
                     <p className="mt-2 text-sm text-white/70">
                       Gestão de Jutsus e Técnicas.
                     </p>
@@ -145,7 +168,9 @@ async function RootContent() {
                 </div>
 
                 <div className="rounded-2xl border border-dashed border-accent/40 bg-accent/10 p-4">
-                  <p className="text-xs uppercase tracking-[0.24em] text-accent-foreground/70">Alliance protocol</p>
+                  <p className="text-xs uppercase tracking-[0.24em] text-accent-foreground/70">
+                    Alliance protocol
+                  </p>
                   <p className="mt-2 text-sm leading-6 text-foreground/80">
                     Crie sua conta e espere a aprovação do respectivo Kage.
                   </p>
@@ -161,9 +186,15 @@ async function RootContent() {
               key={pillar.title}
               className="rounded-[1.5rem] border border-border/80 bg-card/80 p-6 backdrop-blur"
             >
-              <p className="text-xs uppercase tracking-[0.24em] text-primary">Vila Aliada</p>
-              <h3 className="mt-4 text-2xl font-black uppercase tracking-[-0.04em]">{pillar.title}</h3>
-              <p className="mt-3 text-sm leading-6 text-muted-foreground">{pillar.description}</p>
+              <p className="text-xs uppercase tracking-[0.24em] text-primary">
+                Vila Aliada
+              </p>
+              <h3 className="mt-4 text-2xl font-black uppercase tracking-[-0.04em]">
+                {pillar.title}
+              </h3>
+              <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                {pillar.description}
+              </p>
             </article>
           ))}
         </div>
@@ -178,10 +209,16 @@ export default function Home() {
       <nav className="w-full border-b border-b-foreground/10 bg-background/85 backdrop-blur">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 text-sm md:px-6 lg:px-8">
           <div className="flex gap-5 items-center font-semibold">
-            <span className="text-base uppercase tracking-[0.2em] text-primary md:text-lg">RPG Alliance</span>
+            <span className="text-base uppercase tracking-[0.2em] text-primary md:text-lg">
+              RPG Alliance
+            </span>
           </div>
           <div className="flex items-center gap-2 md:gap-3">
-            <Button asChild variant="ghost" className="hidden sm:inline-flex uppercase tracking-[0.18em]">
+            <Button
+              asChild
+              variant="ghost"
+              className="hidden sm:inline-flex uppercase tracking-[0.18em]"
+            >
               <Link href="/auth/login">Login</Link>
             </Button>
             <Button asChild className="uppercase tracking-[0.18em]">
@@ -193,7 +230,11 @@ export default function Home() {
           </div>
         </div>
       </nav>
-      <Suspense fallback={<div className="mt-8 text-sm text-muted-foreground">Loading...</div>}>
+      <Suspense
+        fallback={
+          <div className="mt-8 text-sm text-muted-foreground">Loading...</div>
+        }
+      >
         <RootContent />
       </Suspense>
     </main>

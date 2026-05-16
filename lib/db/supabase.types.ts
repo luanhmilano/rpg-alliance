@@ -127,53 +127,7 @@ export type Database = {
           updated_at?: string;
         };
       };
-      profiles: {
-        Row: {
-          id: string;
-          role: "KAGE" | "MEMBER";
-          approval_status: "PENDING" | "APPROVED" | "REJECTED";
-          email: string | null;
-          phone: string | null;
-          display_name: string | null;
-          username: string | null;
-          avatar_url: string | null;
-          village: string | null;
-          character_name: string | null;
-          bio: string | null;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id: string;
-          role?: "KAGE" | "MEMBER";
-          approval_status?: "PENDING" | "APPROVED" | "REJECTED";
-          email?: string | null;
-          phone?: string | null;
-          display_name?: string | null;
-          username?: string | null;
-          avatar_url?: string | null;
-          village?: string | null;
-          character_name?: string | null;
-          bio?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          role?: "KAGE" | "MEMBER";
-          approval_status?: "PENDING" | "APPROVED" | "REJECTED";
-          email?: string | null;
-          phone?: string | null;
-          display_name?: string | null;
-          username?: string | null;
-          avatar_url?: string | null;
-          village?: string | null;
-          character_name?: string | null;
-          bio?: string | null;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
+
       techniques: {
         Row: {
           id: string;
