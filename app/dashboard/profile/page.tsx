@@ -16,21 +16,13 @@ import {
 import { InfoIcon } from "lucide-react";
 
 type ProfileFormData = {
-  username: string;
-  avatar_url: string;
-  village: string;
-  character_name: string;
-  bio: string;
+  phone: string;
 };
 
 export default function ProfilePage() {
   const router = useRouter();
   const [formData, setFormData] = useState<ProfileFormData>({
-    username: "",
-    avatar_url: "",
-    village: "",
-    character_name: "",
-    bio: "",
+    phone: "",
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,13 +52,9 @@ export default function ProfilePage() {
       }
 
       const { error } = await supabase
-        .from("profiles")
+        .from("players")
         .update({
-          username: formData.username,
-          avatar_url: formData.avatar_url,
-          village: formData.village,
-          character_name: formData.character_name,
-          bio: formData.bio,
+          phone: formData.phone,
         })
         .eq("id", user.id);
 
@@ -103,67 +91,16 @@ export default function ProfilePage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="phone">Phone</Label>
                 <Input
-                  id="username"
-                  name="username"
-                  placeholder="Your shinobi name"
-                  value={formData.username}
+                  id="phone"
+                  name="phone"
+                  placeholder="11999999999"
+                  value={formData.phone}
                   onChange={handleChange}
                   disabled={isLoading}
                 />
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="character_name">Character Name</Label>
-                <Input
-                  id="character_name"
-                  name="character_name"
-                  placeholder="e.g., Naruto"
-                  value={formData.character_name}
-                  onChange={handleChange}
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="village">Village</Label>
-                <Input
-                  id="village"
-                  name="village"
-                  placeholder="e.g., Hidden Leaf"
-                  value={formData.village}
-                  onChange={handleChange}
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="avatar_url">Avatar URL</Label>
-                <Input
-                  id="avatar_url"
-                  name="avatar_url"
-                  type="url"
-                  placeholder="https://..."
-                  value={formData.avatar_url}
-                  onChange={handleChange}
-                  disabled={isLoading}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="bio">Bio</Label>
-              <textarea
-                id="bio"
-                name="bio"
-                placeholder="Tell us about your shinobi..."
-                value={formData.bio}
-                onChange={handleChange}
-                disabled={isLoading}
-                rows={4}
-                className="w-full rounded border border-input bg-background px-3 py-2 text-sm placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              />
             </div>
 
             {error && (

@@ -11,7 +11,7 @@ type JutsuUpdate = {
   created_at: string;
   changed_fields: string[];
   jutsu_name: string;
-  changed_by_username: string | null;
+  changed_by_identity: string | null;
   changed_by_role: string;
 };
 
@@ -29,7 +29,7 @@ async function UpdatesFeedContent() {
     created_at: string;
     changed_fields: string[];
     jutsus: { name: string } | null;
-    profiles: { username: string | null; role: string } | null;
+    players: { email: string | null; roles: { name: string } | null } | null;
   };
 
   const { data: dbUpdates, error } = await supabase
@@ -41,7 +41,7 @@ async function UpdatesFeedContent() {
       created_at,
       changed_fields,
       jutsus(name),
-      profiles(username, role)
+      players(email, roles(name))
     `
     )
     .order("created_at", { ascending: false })
@@ -56,7 +56,7 @@ async function UpdatesFeedContent() {
       created_at: mock.created_at,
       changed_fields: mock.changed_fields,
       jutsu_name: mock.jutsu_name,
-      changed_by_username: mock.changed_by_username,
+      changed_by_identity: mock.changed_by_identity,
       changed_by_role: mock.changed_by_role,
     }));
   } else {
@@ -66,8 +66,8 @@ async function UpdatesFeedContent() {
       created_at: update.created_at,
       changed_fields: update.changed_fields,
       jutsu_name: update.jutsus?.name || "Unknown Jutsu",
-      changed_by_username: update.profiles?.username || "Unknown User",
-      changed_by_role: update.profiles?.role || "MEMBER",
+      changed_by_identity: update.players?.email || "Unknown User",
+      changed_by_role: update.players?.roles?.name || "MEMBER",
     }));
   }
 
@@ -100,7 +100,7 @@ async function UpdatesFeedContent() {
                     <p className="text-sm text-muted-foreground mt-1">
                       Updated by{" "}
                       <span className="font-semibold">
-                        {update.changed_by_username}
+                        {update.changed_by_identity}
                       </span>{" "}
                       ({update.changed_by_role})
                     </p>

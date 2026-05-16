@@ -33,38 +33,41 @@ export async function getCurrentProfile() {
 
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("profiles")
-    .select("id,email,phone,role,approval_status")
+    .from("players")
+    .select("id,email,phone,role_id,approved")
     .eq("id", user.id)
     .single();
 
   if (error) {
-    // Backward compatibility for users created before the profiles trigger.
-    // PGRST116 means no rows were found for single().
+    // User not found in players table - not fully registered yet
     if (error.code === "PGRST116") {
-      return {
-        id: user.id,
-        email: user.email ?? null,
-        phone: user.phone ?? null,
-        role: "MEMBER",
-        approval_status: "PENDING",
-      } as AppProfile;
+      return null;
     }
 
     return null;
   }
 
   if (!data) {
-    return {
-      id: user.id,
-      email: user.email ?? null,
-      phone: user.phone ?? null,
-      role: "MEMBER",
-      approval_status: "PENDING",
-    } as AppProfile;
+    return null;
   }
 
-  return data as AppProfile;
+  // Get role name from role_id
+  const { data: roleData } = await supabase
+    .from("roles")
+    .select("name")
+    .eq("id", data.role_id)
+    .single();
+
+  const roleName = (roleData?.name as AppRole) ?? "MEMBER";
+  const approvalStatus = data.approved ? "APPROVED" : "PENDING";
+
+  return {
+    id: data.id,
+    email: data.email ?? null,
+    phone: data.phone ?? null,
+    role: roleName,
+    approval_status: approvalStatus,
+  } as AppProfile;
 }
 
 export async function requireAuthenticatedUser() {
