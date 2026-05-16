@@ -5,12 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InfoIcon } from "lucide-react";
 import { jutsuUpdatesMock } from "@/data/jutsu-updates-mock";
 
-type JutsuUpdate = {
+type TechniqueUpdate = {
   id: string;
-  jutsu_id: string;
+  technique_id: string | null;
   created_at: string;
   changed_fields: string[];
-  jutsu_name: string;
+  technique_name: string;
   changed_by_identity: string | null;
   changed_by_role: string;
 };
@@ -19,30 +19,30 @@ async function UpdatesFeedContent() {
   await requireApprovedProfile();
   const supabase = await createClient();
 
-  let updates: JutsuUpdate[] = [];
+  let updates: TechniqueUpdate[] = [];
   let usesMockData = false;
 
   // Try to fetch real data from database
   type DBUpdate = {
     id: string;
-    jutsu_id: string;
+    technique_id: string | null;
     created_at: string;
     changed_fields: string[];
-    jutsus: { name: string } | null;
+    techniques: { name: string } | null;
     players: { email: string | null; roles: { name: string } | null } | null;
   };
 
   const { data: dbUpdates, error } = await supabase
-    .from("jutsu_updates")
+    .from("technique_updates")
     .select(
       `
       id,
-      jutsu_id,
+      technique_id,
       created_at,
       changed_fields,
-      jutsus(name),
+      techniques(name),
       players(email, roles(name))
-    `
+    `,
     )
     .order("created_at", { ascending: false })
     .limit(50);
@@ -52,20 +52,20 @@ async function UpdatesFeedContent() {
     usesMockData = true;
     updates = jutsuUpdatesMock.map((mock) => ({
       id: mock.id,
-      jutsu_id: mock.jutsu_id,
+      technique_id: mock.jutsu_id,
       created_at: mock.created_at,
       changed_fields: mock.changed_fields,
-      jutsu_name: mock.jutsu_name,
+      technique_name: mock.jutsu_name,
       changed_by_identity: mock.changed_by_identity,
       changed_by_role: mock.changed_by_role,
     }));
   } else {
     updates = (dbUpdates as unknown as DBUpdate[]).map((update) => ({
       id: update.id,
-      jutsu_id: update.jutsu_id,
+      technique_id: update.technique_id,
       created_at: update.created_at,
       changed_fields: update.changed_fields,
-      jutsu_name: update.jutsus?.name || "Unknown Jutsu",
+      technique_name: update.techniques?.name || "Unknown Technique",
       changed_by_identity: update.players?.email || "Unknown User",
       changed_by_role: update.players?.roles?.name || "MEMBER",
     }));
@@ -89,13 +89,13 @@ async function UpdatesFeedContent() {
 
       {updates && updates.length > 0 ? (
         <div className="space-y-3">
-          {updates.map((update: JutsuUpdate) => (
+          {updates.map((update: TechniqueUpdate) => (
             <Card key={update.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <CardTitle className="text-lg">
-                      {update.jutsu_name}
+                      {update.technique_name}
                     </CardTitle>
                     <p className="text-sm text-muted-foreground mt-1">
                       Updated by{" "}
@@ -120,7 +120,7 @@ async function UpdatesFeedContent() {
                         key={field}
                         className="px-2 py-1 bg-secondary text-secondary-foreground rounded text-xs font-medium"
                       >
-                        {field.replace(/_/g, " ")}
+                        {field.replaceAll("_", " ")}
                       </span>
                     )) || (
                       <span className="text-xs text-muted-foreground">
@@ -137,7 +137,10 @@ async function UpdatesFeedContent() {
         <Card>
           <CardContent className="pt-6">
             <div className="text-center py-12">
-              <InfoIcon className="mx-auto mb-3 text-muted-foreground" size={32} />
+              <InfoIcon
+                className="mx-auto mb-3 text-muted-foreground"
+                size={32}
+              />
               <p className="text-muted-foreground">
                 No jutsu updates yet. Check back later!
               </p>

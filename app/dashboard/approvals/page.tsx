@@ -111,7 +111,9 @@ async function ApprovalsContent() {
                         {profile.email ?? profile.phone ?? profile.id}
                       </td>
                       <td className="py-3 pr-4">
-                        {profile.roles?.name ?? profile.role_id ?? "MEMBER"}
+                        {profile.roles?.[0]?.name ??
+                          profile.role_id ??
+                          "MEMBER"}
                       </td>
                       <td className="py-3 pr-4">
                         {profile.approved ? "APPROVED" : "PENDING"}

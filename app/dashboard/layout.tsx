@@ -16,19 +16,23 @@ async function DashboardNav() {
         <Link href="/dashboard/updates">Updates</Link>
         <Link href="/dashboard/profile">Profile</Link>
         {profile.role === "KAGE" && (
-          <Link href="/dashboard/approvals">[KAGE] Approvals</Link>
+          <>
+            <Link href="/dashboard/techniques">Techniques</Link>
+            <Link href="/dashboard/kage">[KAGE] Console</Link>
+            <Link href="/dashboard/approvals">[KAGE] Approvals</Link>
+          </>
         )}
       </div>
       <div className="flex gap-4 items-center">
         <Suspense>
           <ThemeSwitcher />
         </Suspense>
-        {!hasEnvVars ? (
-          <EnvVarWarning />
-        ) : (
+        {hasEnvVars ? (
           <Suspense>
             <AuthButton />
           </Suspense>
+        ) : (
+          <EnvVarWarning />
         )}
       </div>
     </div>
@@ -38,7 +42,7 @@ async function DashboardNav() {
 export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode;
+  readonly children: React.ReactNode;
 }) {
   return (
     <main className="min-h-screen flex flex-col items-center">
