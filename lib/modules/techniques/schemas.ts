@@ -6,6 +6,7 @@ import {
   EFFECT_KINDS,
   EFFECT_OPERATIONS,
   EFFECT_VALUE_TYPES,
+  PRICE_CONTEXTS,
   TARGET_SCOPES,
   TECHNIQUE_KINDS,
 } from "@/lib/modules/techniques/constants";
@@ -14,6 +15,7 @@ const uuidSchema = z.string().uuid();
 
 export const techniqueFiltersSchema = z.object({
   kind: z.enum(TECHNIQUE_KINDS).optional(),
+  techniqueTypeId: uuidSchema.optional(),
   rankId: uuidSchema.optional(),
   q: z.string().trim().min(1).max(120).optional(),
 });
@@ -30,6 +32,8 @@ export const techniqueLimitsInputSchema = z
     maxActiveTurns: z.number().int().positive().nullable().optional(),
     hasFightUseLimit: z.boolean(),
     maxUsesPerFight: z.number().int().positive().nullable().optional(),
+    hasCardUseLimit: z.boolean(),
+    maxUsesPerCard: z.number().int().positive().nullable().optional(),
   })
   .superRefine((value, ctx) => {
     if (value.hasTurnLimit && typeof value.maxActiveTurns !== "number") {
@@ -63,7 +67,29 @@ export const techniqueLimitsInputSchema = z
         message: "maxUsesPerFight must be null when hasFightUseLimit is false",
       });
     }
+
+    if (value.hasCardUseLimit && typeof value.maxUsesPerCard !== "number") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["maxUsesPerCard"],
+        message: "maxUsesPerCard is required when hasCardUseLimit is true",
+      });
+    }
+
+    if (!value.hasCardUseLimit && value.maxUsesPerCard != null) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["maxUsesPerCard"],
+        message: "maxUsesPerCard must be null when hasCardUseLimit is false",
+      });
+    }
   });
+
+export const techniquePriceInputSchema = z.object({
+  priceContext: z.enum(PRICE_CONTEXTS),
+  amount: z.number().nonnegative(),
+  notes: z.string().trim().max(300).nullable().optional(),
+});
 
 const numericEffectValueSchema = z.object({
   valueType: z.literal(EFFECT_VALUE_TYPES[0]),
@@ -103,13 +129,15 @@ export const techniqueEffectInputSchema = z.object({
 
 export const createTechniqueSchema = z.object({
   kind: z.enum(TECHNIQUE_KINDS),
+  techniqueTypeId: uuidSchema,
   name: z.string().trim().min(2).max(140),
   rankId: uuidSchema,
   link: z.string().trim().url().nullable().optional(),
   observations: z.string().trim().max(2000).nullable().optional(),
   costs: z.array(techniqueCostInputSchema).default([]),
+  prices: z.array(techniquePriceInputSchema).default([]),
   limits: techniqueLimitsInputSchema.nullable().optional(),
-  effects: z.array(techniqueEffectInputSchema).min(1),
+  effects: z.array(techniqueEffectInputSchema).default([]),
   targetIds: z.array(uuidSchema).default([]),
   escapeIds: z.array(uuidSchema).default([]),
 });
@@ -117,10 +145,9 @@ export const createTechniqueSchema = z.object({
 export const updateTechniqueSchema = createTechniqueSchema;
 
 export const patchTechniqueSchema = createTechniqueSchema
-  .omit({ kind: true })
   .partial()
   .extend({
-    effects: z.array(techniqueEffectInputSchema).min(1).optional(),
+    effects: z.array(techniqueEffectInputSchema).optional(),
   });
 
 export const techniqueIdParamsSchema = z.object({
@@ -130,6 +157,7 @@ export const techniqueIdParamsSchema = z.object({
 export type TechniqueFiltersInput = z.infer<typeof techniqueFiltersSchema>;
 export type TechniqueCostInput = z.infer<typeof techniqueCostInputSchema>;
 export type TechniqueLimitsInput = z.infer<typeof techniqueLimitsInputSchema>;
+export type TechniquePriceInput = z.infer<typeof techniquePriceInputSchema>;
 export type TechniqueEffectValueInput = z.infer<typeof techniqueEffectValueInputSchema>;
 export type TechniqueEffectInput = z.infer<typeof techniqueEffectInputSchema>;
 export type CreateTechniqueInput = z.infer<typeof createTechniqueSchema>;

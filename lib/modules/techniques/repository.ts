@@ -12,6 +12,7 @@ import {
   mapTechniqueCostRowToModel,
   mapTechniqueEffectRowToModel,
   mapTechniqueLimitsRowToModel,
+  mapTechniquePriceRowToModel,
   mapTechniqueRowToModel,
 } from "@/lib/modules/techniques/mappers";
 import type { TechniqueFilters } from "@/lib/modules/techniques/types";
@@ -28,6 +29,24 @@ export interface TechniquesRepository {
 export class SupabaseTechniquesRepository implements TechniquesRepository {
   constructor(private readonly client: any) {}
 
+  private async syncTechniqueSubtype(techniqueId: string, kind: "JUTSU" | "SUMMONING") {
+    const keepTable = kind === "JUTSU" ? "jutsus" : "summonings";
+    const dropTable = kind === "JUTSU" ? "summonings" : "jutsus";
+
+    const { error: keepError } = await this.client
+      .from(keepTable)
+      .upsert({ technique_id: techniqueId }, { onConflict: "technique_id" });
+
+    if (keepError) {
+      throw new ApiError("INTERNAL_ERROR", "Failed to sync technique subtype", keepError);
+    }
+
+    const { error: dropError } = await this.client.from(dropTable).delete().eq("technique_id", techniqueId);
+    if (dropError) {
+      throw new ApiError("INTERNAL_ERROR", "Failed to sync technique subtype", dropError);
+    }
+  }
+
   async list(filters?: TechniqueFilters): Promise<TechniqueResponseDto[]> {
     let query = this.client.from("techniques").select("*").order("name", { ascending: true });
 
@@ -37,6 +56,10 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
 
     if (filters?.rankId) {
       query = query.eq("rank_id", filters.rankId);
+    }
+
+    if (filters?.techniqueTypeId) {
+      query = query.eq("technique_type_id", filters.techniqueTypeId);
     }
 
     if (filters?.q) {
@@ -72,9 +95,14 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
       return null;
     }
 
-    const [costsResult, limitsResult, effectsResult, valuesResult, targetsResult, escapesResult] =
+    const [costsResult, pricesResult, limitsResult, effectsResult, valuesResult, targetsResult, escapesResult] =
       await Promise.all([
         this.client.from("technique_costs").select("*").eq("technique_id", id),
+        this.client
+          .from("technique_prices")
+          .select("*")
+          .eq("technique_id", id)
+          .order("created_at", { ascending: true }),
         this.client.from("technique_limits").select("*").eq("technique_id", id).maybeSingle(),
         this.client
           .from("technique_effects")
@@ -88,6 +116,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
 
     if (
       costsResult.error ||
+      pricesResult.error ||
       limitsResult.error ||
       effectsResult.error ||
       valuesResult.error ||
@@ -96,6 +125,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
     ) {
       throw new ApiError("INTERNAL_ERROR", "Failed to load technique aggregate", {
         costs: costsResult.error,
+        prices: pricesResult.error,
         limits: limitsResult.error,
         effects: effectsResult.error,
         values: valuesResult.error,
@@ -111,6 +141,9 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
       technique: mapTechniqueRowToModel(techniqueRow),
       costs: ((costsResult.data ?? []) as DbRow<"technique_costs">[]).map(
         (row: DbRow<"technique_costs">) => mapTechniqueCostRowToModel(row),
+      ),
+      prices: ((pricesResult.data ?? []) as DbRow<"technique_prices">[]).map(
+        (row: DbRow<"technique_prices">) => mapTechniquePriceRowToModel(row),
       ),
       limits: limitsResult.data ? mapTechniqueLimitsRowToModel(limitsResult.data as DbRow<"technique_limits">) : null,
       effects: ((effectsResult.data ?? []) as DbRow<"technique_effects">[]).map(
@@ -137,16 +170,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
 
     const techniqueId = techniqueRow.id;
 
-    const subtypeInsert = {
-      technique_id: techniqueId,
-    };
-
-    const subtypeTable = dto.kind === "JUTSU" ? "jutsus" : "summonings";
-    const { error: subtypeError } = await this.client.from(subtypeTable).insert(subtypeInsert);
-
-    if (subtypeError) {
-      throw new ApiError("INTERNAL_ERROR", "Failed to create technique subtype", subtypeError);
-    }
+    await this.syncTechniqueSubtype(techniqueId, dto.kind);
 
     if (dto.costs.length > 0) {
       const { error: costsError } = await this.client.from("technique_costs").insert(
@@ -170,6 +194,8 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
         max_active_turns: dto.limits.maxActiveTurns ?? null,
         has_fight_use_limit: dto.limits.hasFightUseLimit,
         max_uses_per_fight: dto.limits.maxUsesPerFight ?? null,
+        has_card_use_limit: dto.limits.hasCardUseLimit,
+        max_uses_per_card: dto.limits.maxUsesPerCard ?? null,
       });
 
       if (limitsError) {
@@ -177,22 +203,42 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
       }
     }
 
-    const { data: effectRows, error: effectsError } = await this.client
-      .from("technique_effects")
-      .insert(
-        dto.effects.map((effect) => ({
+    if (dto.prices.length > 0) {
+      const { error: pricesError } = await this.client.from("technique_prices").insert(
+        dto.prices.map((item) => ({
           technique_id: techniqueId,
-          target_scope: effect.targetScope,
-          affected_attribute: effect.affectedAttribute,
-          effect_kind: effect.effectKind,
-          operation: effect.operation,
-          execution_order: effect.executionOrder ?? null,
+          price_context: item.priceContext,
+          amount: item.amount,
+          notes: item.notes ?? null,
         })),
-      )
-      .select("*");
+      );
 
-    if (effectsError || !effectRows) {
-      throw new ApiError("INTERNAL_ERROR", "Failed to create technique effects", effectsError);
+      if (pricesError) {
+        throw new ApiError("INTERNAL_ERROR", "Failed to create technique prices", pricesError);
+      }
+    }
+
+    let effectRows: DbRow<"technique_effects">[] = [];
+    if (dto.effects.length > 0) {
+      const { data, error: effectsError } = await this.client
+        .from("technique_effects")
+        .insert(
+          dto.effects.map((effect) => ({
+            technique_id: techniqueId,
+            target_scope: effect.targetScope,
+            affected_attribute: effect.affectedAttribute,
+            effect_kind: effect.effectKind,
+            operation: effect.operation,
+            execution_order: effect.executionOrder ?? null,
+          })),
+        )
+        .select("*");
+
+      if (effectsError || !data) {
+        throw new ApiError("INTERNAL_ERROR", "Failed to create technique effects", effectsError);
+      }
+
+      effectRows = data as DbRow<"technique_effects">[];
     }
 
     type EffectValueInsert = {
@@ -203,7 +249,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
       value_token: string | null;
     };
 
-    const effectValuesInsert = (effectRows as DbRow<"technique_effects">[])
+    const effectValuesInsert = effectRows
       .map((effectRow: DbRow<"technique_effects">, index: number) => {
         const value = dto.effects[index]?.value;
         if (!value) {
@@ -281,6 +327,198 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
 
     if (!data) {
       return null;
+    }
+
+    if (dto.kind) {
+      await this.syncTechniqueSubtype(id, dto.kind);
+    }
+
+    if (dto.costs) {
+      const { error: deleteCostsError } = await this.client.from("technique_costs").delete().eq("technique_id", id);
+      if (deleteCostsError) {
+        throw new ApiError("INTERNAL_ERROR", "Failed to reset technique costs", deleteCostsError);
+      }
+
+      if (dto.costs.length > 0) {
+        const { error: insertCostsError } = await this.client.from("technique_costs").insert(
+          dto.costs.map((item) => ({
+            technique_id: id,
+            resource: item.resource,
+            amount: item.amount,
+            frequency: item.frequency,
+          })),
+        );
+
+        if (insertCostsError) {
+          throw new ApiError("INTERNAL_ERROR", "Failed to update technique costs", insertCostsError);
+        }
+      }
+    }
+
+    if (dto.prices) {
+      const { error: deletePricesError } = await this.client
+        .from("technique_prices")
+        .delete()
+        .eq("technique_id", id);
+      if (deletePricesError) {
+        throw new ApiError("INTERNAL_ERROR", "Failed to reset technique prices", deletePricesError);
+      }
+
+      if (dto.prices.length > 0) {
+        const { error: insertPricesError } = await this.client.from("technique_prices").insert(
+          dto.prices.map((item) => ({
+            technique_id: id,
+            price_context: item.priceContext,
+            amount: item.amount,
+            notes: item.notes ?? null,
+          })),
+        );
+
+        if (insertPricesError) {
+          throw new ApiError("INTERNAL_ERROR", "Failed to update technique prices", insertPricesError);
+        }
+      }
+    }
+
+    if (dto.limits !== undefined) {
+      if (dto.limits === null) {
+        const { error: deleteLimitsError } = await this.client
+          .from("technique_limits")
+          .delete()
+          .eq("technique_id", id);
+        if (deleteLimitsError) {
+          throw new ApiError("INTERNAL_ERROR", "Failed to clear technique limits", deleteLimitsError);
+        }
+      } else {
+        const { error: upsertLimitsError } = await this.client.from("technique_limits").upsert(
+          {
+            technique_id: id,
+            has_turn_limit: dto.limits.hasTurnLimit,
+            max_active_turns: dto.limits.maxActiveTurns ?? null,
+            has_fight_use_limit: dto.limits.hasFightUseLimit,
+            max_uses_per_fight: dto.limits.maxUsesPerFight ?? null,
+            has_card_use_limit: dto.limits.hasCardUseLimit,
+            max_uses_per_card: dto.limits.maxUsesPerCard ?? null,
+          },
+          { onConflict: "technique_id" },
+        );
+
+        if (upsertLimitsError) {
+          throw new ApiError("INTERNAL_ERROR", "Failed to update technique limits", upsertLimitsError);
+        }
+      }
+    }
+
+    if (dto.effects) {
+      const { error: deleteEffectsError } = await this.client
+        .from("technique_effects")
+        .delete()
+        .eq("technique_id", id);
+
+      if (deleteEffectsError) {
+        throw new ApiError("INTERNAL_ERROR", "Failed to reset technique effects", deleteEffectsError);
+      }
+
+      if (dto.effects.length > 0) {
+        const { data: effectRows, error: insertEffectsError } = await this.client
+          .from("technique_effects")
+          .insert(
+            dto.effects.map((effect) => ({
+              technique_id: id,
+              target_scope: effect.targetScope,
+              affected_attribute: effect.affectedAttribute,
+              effect_kind: effect.effectKind,
+              operation: effect.operation,
+              execution_order: effect.executionOrder ?? null,
+            })),
+          )
+          .select("*");
+
+        if (insertEffectsError || !effectRows) {
+          throw new ApiError("INTERNAL_ERROR", "Failed to update technique effects", insertEffectsError);
+        }
+
+        type EffectValueInsert = {
+          effect_id: string;
+          value_type: "NUMERIC" | "TEXT" | "TOKEN";
+          value_numeric: number | null;
+          value_text: string | null;
+          value_token: string | null;
+        };
+
+        const effectValuesInsert = (effectRows as DbRow<"technique_effects">[])
+          .map((effectRow: DbRow<"technique_effects">, index: number) => {
+            const value = dto.effects?.[index]?.value;
+            if (!value) {
+              return null;
+            }
+
+            return {
+              effect_id: effectRow.id,
+              value_type: value.valueType,
+              value_numeric: value.valueType === "NUMERIC" ? value.valueNumeric : null,
+              value_text: value.valueType === "TEXT" ? value.valueText : null,
+              value_token: value.valueType === "TOKEN" ? value.valueToken : null,
+            };
+          })
+          .filter((item: EffectValueInsert | null): item is EffectValueInsert => item !== null);
+
+        if (effectValuesInsert.length > 0) {
+          const { error: insertValuesError } = await this.client
+            .from("technique_effect_values")
+            .insert(effectValuesInsert);
+
+          if (insertValuesError) {
+            throw new ApiError("INTERNAL_ERROR", "Failed to update technique effect values", insertValuesError);
+          }
+        }
+      }
+    }
+
+    if (dto.targetIds) {
+      const { error: deleteTargetsError } = await this.client
+        .from("technique_targets")
+        .delete()
+        .eq("technique_id", id);
+      if (deleteTargetsError) {
+        throw new ApiError("INTERNAL_ERROR", "Failed to reset technique targets", deleteTargetsError);
+      }
+
+      if (dto.targetIds.length > 0) {
+        const { error: insertTargetsError } = await this.client.from("technique_targets").insert(
+          dto.targetIds.map((targetId) => ({
+            technique_id: id,
+            target_id: targetId,
+          })),
+        );
+
+        if (insertTargetsError) {
+          throw new ApiError("INTERNAL_ERROR", "Failed to update technique targets", insertTargetsError);
+        }
+      }
+    }
+
+    if (dto.escapeIds) {
+      const { error: deleteEscapesError } = await this.client
+        .from("technique_escapes")
+        .delete()
+        .eq("technique_id", id);
+      if (deleteEscapesError) {
+        throw new ApiError("INTERNAL_ERROR", "Failed to reset technique escapes", deleteEscapesError);
+      }
+
+      if (dto.escapeIds.length > 0) {
+        const { error: insertEscapesError } = await this.client.from("technique_escapes").insert(
+          dto.escapeIds.map((escapeId) => ({
+            technique_id: id,
+            escape_id: escapeId,
+          })),
+        );
+
+        if (insertEscapesError) {
+          throw new ApiError("INTERNAL_ERROR", "Failed to update technique escapes", insertEscapesError);
+        }
+      }
     }
 
     return mapTechniqueRowToModel(data);

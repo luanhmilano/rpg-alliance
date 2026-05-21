@@ -23,12 +23,14 @@ async function NewTechniqueContent() {
   await requireKageProfile();
   const supabase = await createClient();
 
-  const { data: rankOptions, error } = await supabase
-    .from("ranks")
-    .select("id,value")
-    .order("value", { ascending: true });
+  const [rankResult, typeResult, targetResult, escapeResult] = await Promise.all([
+    supabase.from("ranks").select("id,value").order("value", { ascending: true }),
+    supabase.from("technique_types").select("id,code,name").order("name", { ascending: true }),
+    supabase.from("targets").select("id,code,description").order("code", { ascending: true }),
+    supabase.from("escapes").select("id,code,description").order("code", { ascending: true }),
+  ]);
 
-  if (error) {
+  if (rankResult.error || typeResult.error || targetResult.error || escapeResult.error) {
     return (
       <div className="flex-1 w-full flex flex-col gap-6">
         <div className="space-y-2">
@@ -43,8 +45,8 @@ async function NewTechniqueContent() {
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Não foi possível carregar os ranks. Verifique as permissões da
-              tabela <code>ranks</code> no Supabase e tente novamente.
+              Não foi possível carregar catálogos da técnica. Verifique
+              permissões de leitura de ranks, technique_types, targets e escapes.
             </p>
           </CardContent>
         </Card>
@@ -60,8 +62,8 @@ async function NewTechniqueContent() {
         </p>
         <h1 className="text-3xl font-bold">Nova técnica</h1>
         <p className="text-sm text-muted-foreground">
-          Crie a base da técnica e o primeiro efeito para alimentar o audit
-          trail.
+          Cadastre a técnica com campos opcionais para custos, limites, alvos,
+          escapes, efeitos e preços por contexto.
         </p>
       </div>
 
@@ -70,7 +72,13 @@ async function NewTechniqueContent() {
           <CardTitle>Dados da técnica</CardTitle>
         </CardHeader>
         <CardContent>
-          <TechniqueForm mode="create" rankOptions={rankOptions ?? []} />
+          <TechniqueForm
+            mode="create"
+            rankOptions={rankResult.data ?? []}
+            techniqueTypeOptions={typeResult.data ?? []}
+            targetOptions={targetResult.data ?? []}
+            escapeOptions={escapeResult.data ?? []}
+          />
         </CardContent>
       </Card>
     </div>

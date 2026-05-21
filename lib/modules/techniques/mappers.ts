@@ -6,12 +6,14 @@ import type {
   TechniqueEffectValueModel,
   TechniqueLimitsModel,
   TechniqueModel,
+  TechniquePriceModel,
 } from "@/lib/modules/techniques/types";
 
 export function mapTechniqueRowToModel(row: DbRow<"techniques">): TechniqueModel {
   return {
     id: row.id,
     kind: row.kind,
+    techniqueTypeId: row.technique_type_id,
     name: row.name,
     rankId: row.rank_id,
     link: row.link,
@@ -42,6 +44,19 @@ export function mapTechniqueLimitsRowToModel(
     maxActiveTurns: row.max_active_turns,
     hasFightUseLimit: row.has_fight_use_limit,
     maxUsesPerFight: row.max_uses_per_fight,
+    hasCardUseLimit: row.has_card_use_limit,
+    maxUsesPerCard: row.max_uses_per_card,
+  };
+}
+
+export function mapTechniquePriceRowToModel(row: DbRow<"technique_prices">): TechniquePriceModel {
+  return {
+    id: row.id,
+    techniqueId: row.technique_id,
+    priceContext: row.price_context,
+    amount: row.amount,
+    notes: row.notes,
+    createdAt: row.created_at,
   };
 }
 
@@ -100,6 +115,7 @@ export function mapCreateDtoToTechniqueInsert(
 ): DbInsert<"techniques"> {
   return {
     kind: dto.kind,
+    technique_type_id: dto.techniqueTypeId,
     name: dto.name,
     rank_id: dto.rankId,
     link: dto.link ?? null,
@@ -115,6 +131,14 @@ export function mapPatchDtoToTechniqueUpdate(
   const update: DbUpdate<"techniques"> = {
     updated_by: actorId,
   };
+
+  if (typeof dto.kind === "string") {
+    update.kind = dto.kind;
+  }
+
+  if (typeof dto.techniqueTypeId === "string") {
+    update.technique_type_id = dto.techniqueTypeId;
+  }
 
   if (typeof dto.name === "string") {
     update.name = dto.name;
