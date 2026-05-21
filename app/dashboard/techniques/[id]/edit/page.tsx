@@ -41,8 +41,33 @@ async function EditTechniqueContent({ params }: TechniquePageProps) {
       .order("value", { ascending: true }),
   ]);
 
-  if (techniqueResult.error || !techniqueResult.data || rankResult.error) {
+  if (techniqueResult.error || !techniqueResult.data) {
     notFound();
+  }
+
+  if (rankResult.error) {
+    return (
+      <div className="flex-1 w-full flex flex-col gap-6">
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+            KAGE Techniques
+          </p>
+          <h1 className="text-3xl font-bold">Editar técnica</h1>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Falha ao carregar editor</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Não foi possível carregar os ranks. Verifique as permissões da
+              tabela <code>ranks</code> no Supabase e tente novamente.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   const technique = techniqueResult.data;
