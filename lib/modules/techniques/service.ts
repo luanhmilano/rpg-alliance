@@ -5,27 +5,9 @@ import type {
   TechniqueAggregateResponseDto,
   TechniqueResponseDto,
 } from "@/lib/modules/techniques/dtos";
+import { requireKageActorContext } from "@/lib/access-control";
 import type { TechniquesRepository } from "@/lib/modules/techniques/repository";
-import { ApiError } from "@/lib/types/errors";
 import type { ActorContext } from "@/lib/types/common";
-
-function requireApproved(actor: ActorContext | null): asserts actor is ActorContext {
-  if (!actor) {
-    throw new ApiError("UNAUTHORIZED", "User is not authenticated");
-  }
-
-  if (actor.approvalStatus !== "APPROVED") {
-    throw new ApiError("FORBIDDEN", "User is not approved");
-  }
-}
-
-function requireKage(actor: ActorContext | null): asserts actor is ActorContext {
-  requireApproved(actor);
-
-  if (actor.role !== "KAGE") {
-    throw new ApiError("FORBIDDEN", "Only KAGE users can mutate techniques");
-  }
-}
 
 export class TechniquesService {
   constructor(private readonly repository: TechniquesRepository) {}
@@ -42,7 +24,7 @@ export class TechniquesService {
     dto: CreateTechniqueDto,
     actor: ActorContext | null,
   ): Promise<TechniqueAggregateResponseDto> {
-    requireKage(actor);
+    requireKageActorContext(actor);
     return this.repository.create(dto, actor.userId);
   }
 
@@ -51,12 +33,12 @@ export class TechniquesService {
     dto: PatchTechniqueDto,
     actor: ActorContext | null,
   ): Promise<TechniqueResponseDto | null> {
-    requireKage(actor);
+    requireKageActorContext(actor);
     return this.repository.patch(id, dto, actor.userId);
   }
 
   async delete(id: string, actor: ActorContext | null): Promise<boolean> {
-    requireKage(actor);
+    requireKageActorContext(actor);
     return this.repository.delete(id);
   }
 }

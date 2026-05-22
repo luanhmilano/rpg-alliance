@@ -1,3 +1,5 @@
+import type { UUID } from "@/lib/types/common";
+
 export const JUTSU_RANKS = ["C", "B", "A", "S", "SS", "SSS"] as const;
 export const JUTSU_TYPES = [
   "Ninjutsu",
@@ -5,27 +7,39 @@ export const JUTSU_TYPES = [
   "Dojutsu",
   "Genjutsu",
 ] as const;
+export const JUTSU_TYPE_CODES = ["NINJUTSU", "TAIJUTSU", "DOJUTSU", "GENJUTSU"] as const;
+
+const JUTSU_TYPE_CODE_BY_LABEL: Record<(typeof JUTSU_TYPES)[number], (typeof JUTSU_TYPE_CODES)[number]> = {
+  Ninjutsu: "NINJUTSU",
+  Taijutsu: "TAIJUTSU",
+  Dojutsu: "DOJUTSU",
+  Genjutsu: "GENJUTSU",
+};
+
+const JUTSU_TYPE_LABEL_BY_CODE: Record<(typeof JUTSU_TYPE_CODES)[number], (typeof JUTSU_TYPES)[number]> = {
+  NINJUTSU: "Ninjutsu",
+  TAIJUTSU: "Taijutsu",
+  DOJUTSU: "Dojutsu",
+  GENJUTSU: "Genjutsu",
+};
 
 export type JutsuRank = (typeof JUTSU_RANKS)[number];
 export type JutsuType = (typeof JUTSU_TYPES)[number];
+export type JutsuTypeCode = (typeof JUTSU_TYPE_CODES)[number];
 
+// Canonical V2 projection for jutsus stored in techniques + relations.
 export type JutsuModel = {
-  id: string;
+  id: UUID;
+  kind: "JUTSU";
+  techniqueTypeId: UUID;
+  techniqueTypeCode: JutsuTypeCode;
+  rankId: UUID;
   name: string;
-  rank: JutsuRank;
-  atk: string | null;
-  chackra: number;
-  description: string;
+  link: string | null;
   observations: string | null;
-  requirements: string | null;
-  escape: string | null;
-  price: number;
-  link: string;
-  characters: string[] | null;
-  cooldown: number | null;
-  targets: string | null;
-  type: JutsuType;
-  available_to_roles: Array<"KAGE" | "MEMBER">;
+  updatedBy: UUID | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type JutsuFilters = {
@@ -41,6 +55,23 @@ export type JutsuFilters = {
   q?: string;
 };
 
+export type JutsuV2Filters = {
+  kind?: "JUTSU";
+  rankId?: UUID;
+  techniqueTypeId?: UUID;
+  q?: string;
+};
+
+export type JutsuFilterLookup = {
+  rankIdByValue?: Partial<Record<JutsuRank, UUID>>;
+  techniqueTypeIdByCode?: Partial<Record<JutsuTypeCode, UUID>>;
+};
+
+export type JutsuFilterTranslation = {
+  filters: JutsuV2Filters;
+  droppedLegacyFilters: Array<"minPrice" | "maxPrice" | "minChackra" | "maxChackra" | "maxCooldown" | "character" | "targets">;
+};
+
 type QueryPrimitive = string | number | boolean | null;
 
 export type QueryBuilderLike = {
@@ -50,6 +81,12 @@ export type QueryBuilderLike = {
   ilike: (column: string, value: string) => QueryBuilderLike;
   contains: (column: string, value: string[]) => QueryBuilderLike;
   or: (filters: string) => QueryBuilderLike;
+};
+
+export type TechniqueQueryBuilderLike = {
+  eq: (column: string, value: QueryPrimitive) => TechniqueQueryBuilderLike;
+  ilike: (column: string, value: string) => TechniqueQueryBuilderLike;
+  or: (filters: string) => TechniqueQueryBuilderLike;
 };
 
 function parseNumber(value: string | undefined): number | undefined {
@@ -95,6 +132,50 @@ export function parseJutsuFiltersFromSearchParams(
     character: searchParams.get("character") ?? undefined,
     targets: searchParams.get("targets") ?? undefined,
     q: searchParams.get("q") ?? undefined,
+  };
+}
+
+export function mapJutsuTypeToCode(type: JutsuType): JutsuTypeCode {
+  return JUTSU_TYPE_CODE_BY_LABEL[type];
+}
+
+export function mapJutsuTypeCodeToLabel(code: JutsuTypeCode): JutsuType {
+  return JUTSU_TYPE_LABEL_BY_CODE[code];
+}
+
+export function toJutsuV2Filters(
+  filters: JutsuFilters,
+  lookup?: JutsuFilterLookup,
+): JutsuFilterTranslation {
+  const droppedLegacyFilters: JutsuFilterTranslation["droppedLegacyFilters"] = [];
+
+  if (typeof filters.minPrice === "number") droppedLegacyFilters.push("minPrice");
+  if (typeof filters.maxPrice === "number") droppedLegacyFilters.push("maxPrice");
+  if (typeof filters.minChackra === "number") droppedLegacyFilters.push("minChackra");
+  if (typeof filters.maxChackra === "number") droppedLegacyFilters.push("maxChackra");
+  if (typeof filters.maxCooldown === "number") droppedLegacyFilters.push("maxCooldown");
+  if (filters.character) droppedLegacyFilters.push("character");
+  if (filters.targets) droppedLegacyFilters.push("targets");
+
+  const mapped: JutsuV2Filters = {
+    kind: "JUTSU",
+    q: filters.q,
+  };
+
+  if (filters.rank && lookup?.rankIdByValue?.[filters.rank]) {
+    mapped.rankId = lookup.rankIdByValue[filters.rank];
+  }
+
+  if (filters.type) {
+    const code = mapJutsuTypeToCode(filters.type);
+    if (lookup?.techniqueTypeIdByCode?.[code]) {
+      mapped.techniqueTypeId = lookup.techniqueTypeIdByCode[code];
+    }
+  }
+
+  return {
+    filters: mapped,
+    droppedLegacyFilters,
   };
 }
 
@@ -152,6 +233,30 @@ export function applyJutsuFilters<T extends QueryBuilderLike>(
   return next;
 }
 
+export function applyJutsuV2Filters<T extends TechniqueQueryBuilderLike>(
+  query: T,
+  filters: JutsuV2Filters,
+): T {
+  let next = query.eq("kind", "JUTSU") as T;
+
+  if (filters.rankId) {
+    next = next.eq("rank_id", filters.rankId) as T;
+  }
+
+  if (filters.techniqueTypeId) {
+    next = next.eq("technique_type_id", filters.techniqueTypeId) as T;
+  }
+
+  if (filters.q) {
+    const escaped = filters.q.replaceAll(",", "\\,").trim();
+    if (escaped) {
+      next = next.or(`name.ilike.%${escaped}%,observations.ilike.%${escaped}%`) as T;
+    }
+  }
+
+  return next;
+}
+
 export function buildJutsuSelectQuery() {
   return [
     "id",
@@ -170,5 +275,20 @@ export function buildJutsuSelectQuery() {
     "targets",
     "type",
     "available_to_roles",
+  ].join(",");
+}
+
+export function buildJutsuV2SelectQuery() {
+  return [
+    "id",
+    "kind",
+    "technique_type_id",
+    "name",
+    "rank_id",
+    "link",
+    "observations",
+    "updated_by",
+    "created_at",
+    "updated_at",
   ].join(",");
 }

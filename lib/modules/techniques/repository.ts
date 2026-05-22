@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import type { DbRow, DbUpdate } from "@/lib/db";
 import type {
   CreateTechniqueDto,
@@ -15,6 +14,7 @@ import {
   mapTechniquePriceRowToModel,
   mapTechniqueRowToModel,
 } from "@/lib/modules/techniques/mappers";
+import type { TypedSupabaseClient } from "@/lib/supabase/types";
 import type { TechniqueFilters } from "@/lib/modules/techniques/types";
 import { ApiError } from "@/lib/types/errors";
 
@@ -27,7 +27,7 @@ export interface TechniquesRepository {
 }
 
 export class SupabaseTechniquesRepository implements TechniquesRepository {
-  constructor(private readonly client: any) {}
+  constructor(private readonly client: TypedSupabaseClient) {}
 
   private async syncTechniqueSubtype(techniqueId: string, kind: "JUTSU" | "SUMMONING") {
     const keepTable = kind === "JUTSU" ? "jutsus" : "summonings";
@@ -75,9 +75,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
       throw new ApiError("INTERNAL_ERROR", "Failed to list techniques", error);
     }
 
-    return ((data ?? []) as DbRow<"techniques">[]).map((row: DbRow<"techniques">) =>
-      mapTechniqueRowToModel(row),
-    );
+    return (data ?? []).map((row) => mapTechniqueRowToModel(row));
   }
 
   async getById(id: string): Promise<TechniqueAggregateResponseDto | null> {
@@ -134,22 +132,15 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
       });
     }
 
-    const valueRows = (valuesResult.data ?? []) as DbRow<"technique_effect_values">[];
-    const valueMap = new Map(valueRows.map((row: DbRow<"technique_effect_values">) => [row.effect_id, row]));
+    const valueRows = valuesResult.data ?? [];
+    const valueMap = new Map(valueRows.map((row) => [row.effect_id, row]));
 
     return {
       technique: mapTechniqueRowToModel(techniqueRow),
-      costs: ((costsResult.data ?? []) as DbRow<"technique_costs">[]).map(
-        (row: DbRow<"technique_costs">) => mapTechniqueCostRowToModel(row),
-      ),
-      prices: ((pricesResult.data ?? []) as DbRow<"technique_prices">[]).map(
-        (row: DbRow<"technique_prices">) => mapTechniquePriceRowToModel(row),
-      ),
-      limits: limitsResult.data ? mapTechniqueLimitsRowToModel(limitsResult.data as DbRow<"technique_limits">) : null,
-      effects: ((effectsResult.data ?? []) as DbRow<"technique_effects">[]).map(
-        (row: DbRow<"technique_effects">) =>
-        mapTechniqueEffectRowToModel(row, valueMap.get(row.id)),
-      ),
+      costs: (costsResult.data ?? []).map((row) => mapTechniqueCostRowToModel(row)),
+      prices: (pricesResult.data ?? []).map((row) => mapTechniquePriceRowToModel(row)),
+      limits: limitsResult.data ? mapTechniqueLimitsRowToModel(limitsResult.data) : null,
+      effects: (effectsResult.data ?? []).map((row) => mapTechniqueEffectRowToModel(row, valueMap.get(row.id))),
       targetIds: ((targetsResult.data ?? []) as Array<{ target_id: string }>).map((row) => row.target_id),
       escapeIds: ((escapesResult.data ?? []) as Array<{ escape_id: string }>).map((row) => row.escape_id),
     };
@@ -238,7 +229,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
         throw new ApiError("INTERNAL_ERROR", "Failed to create technique effects", effectsError);
       }
 
-      effectRows = data as DbRow<"technique_effects">[];
+      effectRows = data;
     }
 
     type EffectValueInsert = {
@@ -446,7 +437,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
           value_token: string | null;
         };
 
-        const effectValuesInsert = (effectRows as DbRow<"technique_effects">[])
+        const effectValuesInsert = effectRows
           .map((effectRow: DbRow<"technique_effects">, index: number) => {
             const value = dto.effects?.[index]?.value;
             if (!value) {

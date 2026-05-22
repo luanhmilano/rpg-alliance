@@ -1,45 +1,10 @@
 import { Suspense } from "react";
-import { headers } from "next/headers";
-
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { JutsusGrid } from "@/components/jutsus/jutsus-grid";
 import { requireApprovedProfile } from "@/lib/access-control";
-import type { JutsuModel } from "@/lib/jutsus/query-parser";
-import Link from "next/link";
+import { KageWorkspace } from "./_components/kage-workspace";
+import { JutsusSection } from "./_components/jutsus-section";
 
-export default function DashboardPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="text-sm text-muted-foreground">
-          Loading dashboard...
-        </div>
-      }
-    >
-      <DashboardContent />
-    </Suspense>
-  );
-}
-async function DashboardContent() {
+export default async function DashboardPage() {
   const profile = await requireApprovedProfile();
-  const requestHeaders = await headers();
-  const host =
-    requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
-  const protocol = requestHeaders.get("x-forwarded-proto") ?? "http";
-
-  const baseUrl = host ? `${protocol}://${host}` : "http://localhost:3000";
-
-  const response = await fetch(`${baseUrl}/api/jutsus`, {
-    cache: "no-store",
-  });
-
-  let jutsus: JutsuModel[] = [];
-
-  if (response.ok) {
-    const payload = (await response.json()) as { data?: JutsuModel[] };
-    jutsus = payload.data ?? [];
-  }
 
   return (
     <div className="flex-1 w-full flex flex-col gap-8">
@@ -50,38 +15,18 @@ async function DashboardContent() {
         </p>
       </div>
 
-      {profile.role === "KAGE" && (
-        <Card className="border-primary/20 bg-primary/5">
-          <CardContent className="flex flex-col gap-4 pt-6 md:flex-row md:items-center md:justify-between">
-            <div className="space-y-1">
-              <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-                KAGE Workspace
-              </p>
-              <h2 className="text-xl font-semibold">
-                Administre técnicas e a base do clã
-              </h2>
-              <p className="text-sm text-muted-foreground max-w-2xl">
-                Crie novas técnicas, ajuste as existentes e vá para a área de
-                gestão de jogadores, vilas e personagens.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <Button asChild>
-                <Link href="/dashboard/techniques/new">Nova técnica</Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/dashboard/techniques">Editar técnicas</Link>
-              </Button>
-              <Button asChild variant="ghost">
-                <Link href="/dashboard/kage">Gestão KAGE</Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      {profile.role === "KAGE" && <KageWorkspace />}
 
       <div>
-        <JutsusGrid jutsus={jutsus} role={profile.role} />
+        <Suspense 
+          fallback={
+            <div className="h-64 w-full bg-primary/5 border border-primary/10 rounded-md animate-pulse flex items-center justify-center">
+               <p className="text-sm text-muted-foreground">Carregando pergaminhos de jutsus...</p>
+            </div>
+          }
+        >
+          <JutsusSection role={profile.role} />
+        </Suspense>
       </div>
     </div>
   );

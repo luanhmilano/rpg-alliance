@@ -6,82 +6,32 @@ function asString(value: unknown, fallback = ""): string {
   return typeof value === "string" ? value : fallback;
 }
 
-function asNumber(value: unknown, fallback = 0): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
-}
-
 function asNullableString(value: unknown): string | null {
   return typeof value === "string" ? value : null;
 }
 
-function asNullableNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function asStringArray(value: unknown): string[] | null {
-  if (!Array.isArray(value)) {
-    return null;
-  }
-
-  const items = value.filter((entry): entry is string => typeof entry === "string");
-  return items.length > 0 ? items : [];
-}
-
-function normalizeType(value: unknown): JutsuModel["type"] {
-  const input = asString(value, "Ninjutsu");
-
-  if (input === "Dojutsu" || input === "Genjutsu" || input === "Taijutsu") {
-    return input;
-  }
-
-  return "Ninjutsu";
-}
-
-function normalizeRank(value: unknown): JutsuModel["rank"] {
-  const input = asString(value, "C");
-
-  if (input === "B" || input === "A" || input === "S" || input === "SS" || input === "SSS") {
-    return input;
-  }
-
-  return "C";
-}
-
-function normalizeRoles(value: unknown): Array<"KAGE" | "MEMBER"> {
-  if (!Array.isArray(value)) {
-    return ["KAGE", "MEMBER"];
-  }
-
-  const normalized = value.filter(
-    (role): role is "KAGE" | "MEMBER" => role === "KAGE" || role === "MEMBER"
-  );
-
-  return normalized.length > 0 ? normalized : ["KAGE", "MEMBER"];
-}
-
 export function normalizeJutsuRecord(record: UnknownRecord): JutsuModel {
-  const chackra =
-    typeof record.chackra === "number"
-      ? record.chackra
-      : asNumber(record.chakra_cost, 0);
+  const rawKind = asString(record.kind, "JUTSU");
+  const kind: "JUTSU" = rawKind === "SUMMONING" ? "JUTSU" : "JUTSU";
+
+  const rawTypeCode = asString(record.techniqueTypeCode ?? record.technique_type_code, "NINJUTSU");
+  const techniqueTypeCode: JutsuModel["techniqueTypeCode"] =
+    rawTypeCode === "NINJUTSU" || rawTypeCode === "TAIJUTSU" || rawTypeCode === "DOJUTSU" || rawTypeCode === "GENJUTSU"
+      ? rawTypeCode
+      : "NINJUTSU";
 
   return {
-    id: asString(record.id),
+    id: asString(record.id ?? record.technique_id),
+    kind,
+    techniqueTypeId: asString(record.techniqueTypeId ?? record.technique_type_id),
+    techniqueTypeCode,
+    rankId: asString(record.rankId ?? record.rank_id),
     name: asString(record.name, "Unknown Jutsu"),
-    rank: normalizeRank(record.rank),
-    atk: asNullableString(record.atk),
-    chackra,
-    description: asString(record.description),
     observations: asNullableString(record.observations),
-    requirements: asNullableString(record.requirements),
-    escape: asNullableString(record.escape),
-    price: asNumber(record.price, 0),
-    link: asString(record.link, "https://example.com"),
-    characters: asStringArray(record.characters),
-    cooldown: asNullableNumber(record.cooldown),
-    targets: asNullableString(record.targets),
-    type: normalizeType(record.type),
-    available_to_roles: normalizeRoles(record.available_to_roles),
+    link: asNullableString(record.link),
+    updatedBy: asNullableString(record.updatedBy ?? record.updated_by),
+    createdAt: asString(record.createdAt ?? record.created_at),
+    updatedAt: asString(record.updatedAt ?? record.updated_at),
   };
 }
 

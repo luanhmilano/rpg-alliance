@@ -1,112 +1,43 @@
-import { NextResponse } from "next/server";
-
-import { createClient } from "@/lib/supabase/server";
-import { normalizeJutsuList } from "@/lib/jutsus/normalize";
-
-async function requireKageForApi() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (userError || !user) {
-    return {
-      error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }),
-    };
-  }
-
-  const { data: player, error: playerError } = await supabase
-    .from("players")
-    .select("role_id,approved")
-    .eq("id", user.id)
-    .single();
-
-  if (playerError || !player) {
-    return {
-      error: NextResponse.json({ error: "Profile not found" }, { status: 403 }),
-    };
-  }
-
-  if (player.approved !== true) {
-    return {
-      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
-    };
-  }
-
-  const { data: roleRow } = await supabase
-    .from("roles")
-    .select("name")
-    .eq("id", player.role_id)
-    .maybeSingle();
-
-  if (!roleRow || roleRow.name !== "KAGE") {
-    return {
-      error: NextResponse.json({ error: "Forbidden" }, { status: 403 }),
-    };
-  }
-
-  return { supabase, userId: user.id };
-}
+import { getApiActorContext } from "@/app/api/_shared/auth";
+import { fail, ok } from "@/app/api/_shared/responses";
+import { requireKageActorContext } from "@/lib/access-control";
+import { createJutsu, getJutsus } from "@/server/repositories/jutsus.repository";
 
 export async function GET() {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("jutsus")
-    .select("*")
-    .order("name", {
-      ascending: true,
-    });
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  try {
+    const jutsus = await getJutsus();
+    return ok(jutsus, 200);
+  } catch (error) {
+    return fail(error);
   }
-
-  const normalized = normalizeJutsuList(
-    (data ?? []) as Record<string, unknown>[],
-  );
-  return NextResponse.json({ data: normalized }, { status: 200 });
 }
 
 export async function POST(request: Request) {
-  const auth = await requireKageForApi();
+  try {
+    const actor = await getApiActorContext();
+    requireKageActorContext(actor);
 
-  if ("error" in auth) {
-    return auth.error;
+    const payload = (await request.json()) as Record<string, unknown>;
+    const insertPayload = {
+      name: typeof payload.name === "string" ? payload.name : "",
+      techniqueTypeId: typeof payload.techniqueTypeId === "string" ? payload.techniqueTypeId : "",
+      rankId: typeof payload.rankId === "string" ? payload.rankId : "",
+      link: typeof payload.link === "string" ? payload.link : null,
+      observations: typeof payload.observations === "string" ? payload.observations : null,
+      updatedBy: actor.userId,
+    };
+
+    if (!insertPayload.name || !insertPayload.techniqueTypeId || !insertPayload.rankId) {
+      throw new Error("name, techniqueTypeId and rankId are required");
+    }
+
+    const created = await createJutsu(insertPayload);
+    if (!created) {
+      throw new Error("Failed to create jutsu");
+    }
+
+    return ok(created, 201);
+  } catch (error) {
+    return fail(error);
   }
-
-  const payload = (await request.json()) as Record<string, unknown>;
-  const insertPayload = {
-    name: payload.name,
-    type: payload.type,
-    rank: payload.rank,
-    description: payload.description,
-    chackra: payload.chackra,
-    price: payload.price,
-    atk: payload.atk ?? null,
-    observations: payload.observations ?? null,
-    requirements: payload.requirements ?? null,
-    escape: payload.escape ?? null,
-    link: payload.link,
-    characters: payload.characters ?? null,
-    cooldown: payload.cooldown ?? null,
-    targets: payload.targets ?? null,
-    available_to_roles: payload.available_to_roles ?? ["KAGE", "MEMBER"],
-    updated_by: auth.userId,
-  };
-
-  const { data, error } = await auth.supabase
-    .from("jutsus")
-    .insert(insertPayload)
-    .select("*")
-    .single();
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
-
-  return NextResponse.json(
-    { data: normalizeJutsuList([data as Record<string, unknown>])[0] },
-    { status: 201 },
-  );
 }
