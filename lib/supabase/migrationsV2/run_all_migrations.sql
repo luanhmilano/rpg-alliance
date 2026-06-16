@@ -427,6 +427,8 @@ drop policy if exists "technique prices are managed by kage" on public.technique
 create policy "technique prices are managed by kage" on public.technique_prices for all to authenticated using (public.is_kage(auth.uid())) with check (public.is_kage(auth.uid()));
 drop policy if exists "technique updates are readable by authenticated users" on public.technique_updates;
 create policy "technique updates are readable by authenticated users" on public.technique_updates for select to authenticated using (true);
+drop policy if exists "technique updates are inserted by kage" on public.technique_updates;
+create policy "technique updates are inserted by kage" on public.technique_updates for insert to authenticated with check (public.is_kage(auth.uid()));
 commit;
 
 -- ============================================================================
@@ -473,6 +475,7 @@ grant insert, update, delete on public.technique_targets to authenticated;
 grant insert, update, delete on public.technique_escapes to authenticated;
 grant insert, update, delete on public.technique_types to authenticated;
 grant insert, update, delete on public.technique_prices to authenticated;
+grant insert on public.technique_updates to authenticated;
 commit;
 
 -- ============================================================================

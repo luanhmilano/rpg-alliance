@@ -265,4 +265,11 @@ create policy "technique updates are readable by authenticated users"
   to authenticated
   using (true);
 
+drop policy if exists "technique updates are inserted by kage" on public.technique_updates;
+create policy "technique updates are inserted by kage"
+  on public.technique_updates
+  for insert
+  to authenticated
+  with check (public.is_kage(auth.uid()));
+
 commit;

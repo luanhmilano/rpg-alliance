@@ -40,5 +40,6 @@ grant insert, update, delete on public.technique_targets to authenticated;
 grant insert, update, delete on public.technique_escapes to authenticated;
 grant insert, update, delete on public.technique_types to authenticated;
 grant insert, update, delete on public.technique_prices to authenticated;
+grant insert on public.technique_updates to authenticated;
 
 commit;
