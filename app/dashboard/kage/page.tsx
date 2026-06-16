@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { requireKageProfile } from "@/lib/access-control";
-import { createClient } from "@/lib/supabase/server";
+import { catalogsRepository } from "@/server/repositories/catalogs.repository";
+import { playersService } from "@/server/services/players.service";
 import {
   createCharacterAction,
   createVillageAction,
@@ -18,15 +19,13 @@ import {
   updateVillageAction,
 } from "./actions";
 
-type OptionRow = { id: string; name: string };
-
 type PlayerRow = {
   id: string;
   email: string;
   phone: string | null;
   approved: boolean;
   roleId: string;
-  roleName: string;
+  roleName: string; // player.role from PlayerProfileDto
   villageId: string | null;
   villageName: string;
   characterId: string | null;
@@ -49,20 +48,16 @@ async function updateApprovalStatus(formData: FormData) {
     return;
   }
 
-  const supabase = await createClient();
-  const { data: memberRole } = await supabase
-    .from("roles")
-    .select("id")
-    .eq("name", "MEMBER")
-    .maybeSingle();
+  const memberRole = await catalogsRepository.getRoleByName("MEMBER");
+  if (!memberRole?.id) {
+    return;
+  }
 
-  if (!memberRole?.id) return;
-
-  await supabase
-    .from("players")
-    .update({ approved: status === "APPROVED" })
-    .eq("id", profileId)
-    .eq("role_id", memberRole.id);
+  await playersService.setApprovalForRole(
+    profileId,
+    memberRole.id,
+    status === "APPROVED",
+  );
 
   revalidatePath("/dashboard/kage");
   revalidatePath("/pending");
@@ -71,52 +66,26 @@ async function updateApprovalStatus(formData: FormData) {
 
 async function KageContent() {
   const profile = await requireKageProfile();
-  const supabase = await createClient();
 
-  const [playersResult, villagesResult, charactersResult, rolesResult] =
-    await Promise.all([
-      supabase
-        .from("players")
-        .select(
-          "id,email,phone,approved,role_id,village_id,character_id,roles(name),villages(name),characters(name)",
-        )
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("villages")
-        .select("id,name")
-        .order("name", { ascending: true }),
-      supabase
-        .from("characters")
-        .select("id,name,avatar_url")
-        .order("name", { ascending: true }),
-      supabase
-        .from("roles")
-        .select("id,name")
-        .order("name", { ascending: true }),
-    ]);
+  const [players, villages, characters, roles] = await Promise.all([
+    playersService.listForKage(),
+    catalogsRepository.listVillageOptions(),
+    catalogsRepository.listCharacterOptions(),
+    catalogsRepository.listRoleOptions(),
+  ]);
 
-  const players: PlayerRow[] =
-    playersResult.data?.map((player) => ({
-      id: player.id,
-      email: player.email ?? "",
-      phone: player.phone,
-      approved: Boolean(player.approved),
-      roleId: player.role_id,
-      roleName: (player.roles as { name?: string } | null)?.name ?? "MEMBER",
-      villageId: player.village_id,
-      villageName: (player.villages as { name?: string } | null)?.name ?? "—",
-      characterId: player.character_id,
-      characterName:
-        (player.characters as { name?: string } | null)?.name ?? "—",
-    })) ?? [];
-
-  const villages = (villagesResult.data ?? []) as OptionRow[];
-  const characters = (charactersResult.data ?? []) as Array<{
-    id: string;
-    name: string;
-    avatar_url: string | null;
-  }>;
-  const roles = (rolesResult.data ?? []) as OptionRow[];
+  const playerRows: PlayerRow[] = players.map((player) => ({
+    id: player.id,
+    email: player.email,
+    phone: player.phone,
+    approved: player.approved,
+    roleId: player.roleId,
+    roleName: player.role,
+    villageId: player.villageId,
+    villageName: player.villageName,
+    characterId: player.characterId,
+    characterName: player.characterName,
+  }));
 
   return (
     <div className="flex-1 w-full flex flex-col gap-6">
@@ -131,7 +100,7 @@ async function KageContent() {
       </div>
 
       <section className="grid gap-4 md:grid-cols-3">
-        <SummaryItem label="Jogadores" value={String(players.length)} />
+        <SummaryItem label="Jogadores" value={String(playerRows.length)} />
         <SummaryItem label="Vilas" value={String(villages.length)} />
         <SummaryItem label="Personagens" value={String(characters.length)} />
       </section>
@@ -156,13 +125,13 @@ async function KageContent() {
             <CardTitle>Jogadores</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {players.length === 0 ? (
+            {playerRows.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 Nenhum jogador encontrado.
               </p>
             ) : (
               <div className="grid gap-4">
-                {players.map((player) => (
+                {playerRows.map((player) => (
                   <Card key={player.id} className="border-border/60">
                     <CardContent className="space-y-4 pt-6">
                       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -346,11 +315,7 @@ async function KageContent() {
                     value={character.id}
                   />
                   <Input name="name" defaultValue={character.name} required />
-                  <Input
-                    name="avatarUrl"
-                    defaultValue={character.avatar_url ?? ""}
-                    placeholder="Avatar URL"
-                  />
+                  <Input name="avatarUrl" defaultValue={character.avatarUrl ?? ""} placeholder="Avatar URL" />
                   <Button type="submit" variant="outline">
                     Editar
                   </Button>
@@ -376,18 +341,11 @@ async function PendingApprovalsTable({
 }: {
   action: (formData: FormData) => Promise<void>;
 }) {
-  const supabase = await createClient();
-  const { data: pendingProfiles, error } = await supabase
-    .from("players")
-    .select("id,email,phone,role_id,approved,created_at,roles(name)")
-    .eq("approved", false)
-    .order("created_at", { ascending: true });
+  const pendingProfiles = (await playersService.listForKage())
+    .filter((profile) => !profile.approved)
+    .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
 
-  if (error) {
-    return <p className="text-sm text-destructive">{error.message}</p>;
-  }
-
-  if (!pendingProfiles || pendingProfiles.length === 0) {
+  if (pendingProfiles.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
         No pending users right now.
@@ -414,13 +372,13 @@ async function PendingApprovalsTable({
                 {profile.email ?? profile.phone ?? profile.id}
               </td>
               <td className="py-3 pr-4">
-                {profile.roles?.[0]?.name ?? profile.role_id ?? "MEMBER"}
+                {profile.role}
               </td>
               <td className="py-3 pr-4">
                 {profile.approved ? "APPROVED" : "PENDING"}
               </td>
               <td className="py-3 pr-4">
-                {new Date(profile.created_at).toLocaleString()}
+                {new Date(profile.createdAt).toLocaleString()}
               </td>
               <td className="py-3">
                 <div className="flex flex-wrap gap-2">

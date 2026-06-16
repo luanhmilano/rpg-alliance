@@ -2,19 +2,9 @@ import { NextRequest } from "next/server";
 
 import { getApiActorContext } from "@/app/api/_shared/auth";
 import { fail, ok } from "@/app/api/_shared/responses";
-import { createClient } from "@/lib/supabase/server";
-import { SupabaseTechniquesRepository } from "@/lib/modules/techniques/repository";
-import { TechniquesService } from "@/lib/modules/techniques/service";
 import { createTechniqueSchema, techniqueFiltersSchema } from "@/lib/modules/techniques/schemas";
+import { buildTechniquesService } from "@/server/services/techniques.service";
 import { ApiError } from "@/lib/types/errors";
-
-function buildTechniquesService() {
-  const supabase = createClient();
-  return supabase.then((client) => {
-    const repository = new SupabaseTechniquesRepository(client);
-    return new TechniquesService(repository);
-  });
-}
 
 export async function GET(request: NextRequest) {
   try {

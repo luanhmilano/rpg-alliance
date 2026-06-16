@@ -2,8 +2,6 @@ import type { DbRow, DbUpdate } from "@/lib/db";
 import type {
   CreateTechniqueDto,
   PatchTechniqueDto,
-  TechniqueAggregateResponseDto,
-  TechniqueResponseDto,
 } from "@/lib/modules/techniques/dtos";
 import {
   mapCreateDtoToTechniqueInsert,
@@ -15,40 +13,68 @@ import {
   mapTechniqueRowToModel,
 } from "@/lib/modules/techniques/mappers";
 import type { TypedSupabaseClient } from "@/lib/supabase/types";
-import type { TechniqueFilters } from "@/lib/modules/techniques/types";
+import type {
+  TechniqueAggregateModel,
+  TechniqueFilters,
+  TechniqueModel,
+} from "@/lib/modules/techniques/types";
 import { ApiError } from "@/lib/types/errors";
 
+type TechniqueRowWithLookups = DbRow<"techniques"> & {
+  ranks: { value: string } | Array<{ value: string }> | null;
+  technique_types:
+    | { code: string; name: string }
+    | Array<{ code: string; name: string }>
+    | null;
+};
+
 export interface TechniquesRepository {
-  list(filters?: TechniqueFilters): Promise<TechniqueResponseDto[]>;
-  getById(id: string): Promise<TechniqueAggregateResponseDto | null>;
-  create(dto: CreateTechniqueDto, actorId: string): Promise<TechniqueAggregateResponseDto>;
-  patch(id: string, dto: PatchTechniqueDto, actorId: string): Promise<TechniqueResponseDto | null>;
+  list(filters?: TechniqueFilters): Promise<TechniqueModel[]>;
+  getById(id: string): Promise<TechniqueAggregateModel | null>;
+  create(dto: CreateTechniqueDto, actorId: string): Promise<TechniqueAggregateModel>;
+  patch(id: string, dto: PatchTechniqueDto, actorId: string): Promise<TechniqueModel | null>;
   delete(id: string): Promise<boolean>;
 }
 
 export class SupabaseTechniquesRepository implements TechniquesRepository {
   constructor(private readonly client: TypedSupabaseClient) {}
 
+  private mapTechniqueRowWithLookups(row: TechniqueRowWithLookups) {
+    const rankRelation = Array.isArray(row.ranks) ? row.ranks[0] : row.ranks;
+    const typeRelation = Array.isArray(row.technique_types)
+      ? row.technique_types[0]
+      : row.technique_types;
+
+    return mapTechniqueRowToModel(row, {
+      rankValue: rankRelation?.value ?? null,
+      techniqueTypeCode: typeRelation?.code,
+      techniqueTypeName: typeRelation?.name ?? null,
+    });
+  }
+
   private async syncTechniqueSubtype(techniqueId: string, kind: "JUTSU" | "SUMMONING") {
-    const keepTable = kind === "JUTSU" ? "jutsus" : "summonings";
-    const dropTable = kind === "JUTSU" ? "summonings" : "jutsus";
-
-    const { error: keepError } = await this.client
-      .from(keepTable)
-      .upsert({ technique_id: techniqueId }, { onConflict: "technique_id" });
-
-    if (keepError) {
-      throw new ApiError("INTERNAL_ERROR", "Failed to sync technique subtype", keepError);
-    }
-
-    const { error: dropError } = await this.client.from(dropTable).delete().eq("technique_id", techniqueId);
-    if (dropError) {
-      throw new ApiError("INTERNAL_ERROR", "Failed to sync technique subtype", dropError);
+    if (kind === "JUTSU") {
+      const { error: keepError } = await this.client
+        .from("jutsus")
+        .upsert({ technique_id: techniqueId } as never, { onConflict: "technique_id" });
+      if (keepError) throw new ApiError("INTERNAL_ERROR", "Failed to sync technique subtype", keepError);
+      const { error: dropError } = await this.client.from("summonings").delete().eq("technique_id", techniqueId);
+      if (dropError) throw new ApiError("INTERNAL_ERROR", "Failed to sync technique subtype", dropError);
+    } else {
+      const { error: keepError } = await this.client
+        .from("summonings")
+        .upsert({ technique_id: techniqueId } as never, { onConflict: "technique_id" });
+      if (keepError) throw new ApiError("INTERNAL_ERROR", "Failed to sync technique subtype", keepError);
+      const { error: dropError } = await this.client.from("jutsus").delete().eq("technique_id", techniqueId);
+      if (dropError) throw new ApiError("INTERNAL_ERROR", "Failed to sync technique subtype", dropError);
     }
   }
 
-  async list(filters?: TechniqueFilters): Promise<TechniqueResponseDto[]> {
-    let query = this.client.from("techniques").select("*").order("name", { ascending: true });
+  async list(filters?: TechniqueFilters): Promise<TechniqueModel[]> {
+    let query = this.client
+      .from("techniques")
+      .select("id,kind,technique_type_id,name,rank_id,link,observations,updated_by,created_at,updated_at,ranks(value),technique_types(code,name)")
+      .order("name", { ascending: true });
 
     if (filters?.kind) {
       query = query.eq("kind", filters.kind);
@@ -75,13 +101,13 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
       throw new ApiError("INTERNAL_ERROR", "Failed to list techniques", error);
     }
 
-    return (data ?? []).map((row) => mapTechniqueRowToModel(row));
+    return (data ?? []).map((row) => this.mapTechniqueRowWithLookups(row as TechniqueRowWithLookups));
   }
 
-  async getById(id: string): Promise<TechniqueAggregateResponseDto | null> {
+  async getById(id: string): Promise<TechniqueAggregateModel | null> {
     const { data: techniqueRow, error: techniqueError } = await this.client
       .from("techniques")
-      .select("*")
+      .select("id,kind,technique_type_id,name,rank_id,link,observations,updated_by,created_at,updated_at,ranks(value),technique_types(code,name)")
       .eq("id", id)
       .maybeSingle();
 
@@ -107,9 +133,15 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
           .select("*")
           .eq("technique_id", id)
           .order("execution_order", { ascending: true, nullsFirst: false }),
-        this.client.from("technique_effect_values").select("*"),
-        this.client.from("technique_targets").select("target_id").eq("technique_id", id),
-        this.client.from("technique_escapes").select("escape_id").eq("technique_id", id),
+        this.client.from("technique_effect_values").select("*").then((r) => r),
+        this.client
+          .from("technique_targets")
+          .select("target_id,targets(id,code,description)")
+          .eq("technique_id", id),
+        this.client
+          .from("technique_escapes")
+          .select("escape_id,escapes(id,code,description)")
+          .eq("technique_id", id),
       ]);
 
     if (
@@ -132,26 +164,60 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
       });
     }
 
-    const valueRows = valuesResult.data ?? [];
+    const valueRows = (valuesResult.data ?? []) as DbRow<"technique_effect_values">[];
     const valueMap = new Map(valueRows.map((row) => [row.effect_id, row]));
 
+    const effectRows = (effectsResult.data ?? []) as DbRow<"technique_effects">[];
+
+    const targetRows = (targetsResult.data ?? []) as Array<{
+      target_id: string;
+      targets:
+        | {
+            id: string;
+            code: string;
+            description: string;
+          }
+        | Array<{ id: string; code: string; description: string }>
+        | null;
+    }>;
+
+    const escapeRows = (escapesResult.data ?? []) as Array<{
+      escape_id: string;
+      escapes:
+        | {
+            id: string;
+            code: string;
+            description: string;
+          }
+        | Array<{ id: string; code: string; description: string }>
+        | null;
+    }>;
+
     return {
-      technique: mapTechniqueRowToModel(techniqueRow),
+      technique: this.mapTechniqueRowWithLookups(techniqueRow as TechniqueRowWithLookups),
       costs: (costsResult.data ?? []).map((row) => mapTechniqueCostRowToModel(row)),
       prices: (pricesResult.data ?? []).map((row) => mapTechniquePriceRowToModel(row)),
       limits: limitsResult.data ? mapTechniqueLimitsRowToModel(limitsResult.data) : null,
-      effects: (effectsResult.data ?? []).map((row) => mapTechniqueEffectRowToModel(row, valueMap.get(row.id))),
-      targetIds: ((targetsResult.data ?? []) as Array<{ target_id: string }>).map((row) => row.target_id),
-      escapeIds: ((escapesResult.data ?? []) as Array<{ escape_id: string }>).map((row) => row.escape_id),
+      effects: effectRows.map((row) => mapTechniqueEffectRowToModel(row, valueMap.get(row.id))),
+      targetIds: targetRows.map((row) => row.target_id),
+      escapeIds: escapeRows.map((row) => row.escape_id),
+      targets: targetRows
+        .map((row) => (Array.isArray(row.targets) ? row.targets[0] : row.targets))
+        .filter((row): row is { id: string; code: string; description: string } => Boolean(row))
+        .map((row) => ({ id: row.id, code: row.code, description: row.description })),
+      escapes: escapeRows
+        .map((row) => (Array.isArray(row.escapes) ? row.escapes[0] : row.escapes))
+        .filter((row): row is { id: string; code: string; description: string } => Boolean(row))
+        .map((row) => ({ id: row.id, code: row.code, description: row.description })),
     };
   }
 
-  async create(dto: CreateTechniqueDto, actorId: string): Promise<TechniqueAggregateResponseDto> {
+  async create(dto: CreateTechniqueDto, actorId: string): Promise<TechniqueAggregateModel> {
     const techniqueInsert = mapCreateDtoToTechniqueInsert(dto, actorId);
 
     const { data: techniqueRow, error: techniqueError } = await this.client
       .from("techniques")
-      .insert(techniqueInsert)
+      .insert(techniqueInsert as never)
       .select("*")
       .single();
 
@@ -159,7 +225,8 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
       throw new ApiError("CONFLICT", "Failed to create technique", techniqueError);
     }
 
-    const techniqueId = techniqueRow.id;
+    const created = techniqueRow as unknown as DbRow<"techniques">;
+    const techniqueId = created.id;
 
     await this.syncTechniqueSubtype(techniqueId, dto.kind);
 
@@ -170,7 +237,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
           resource: item.resource,
           amount: item.amount,
           frequency: item.frequency,
-        })),
+        })) as never[],
       );
 
       if (costsError) {
@@ -187,7 +254,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
         max_uses_per_fight: dto.limits.maxUsesPerFight ?? null,
         has_card_use_limit: dto.limits.hasCardUseLimit,
         max_uses_per_card: dto.limits.maxUsesPerCard ?? null,
-      });
+      } as never);
 
       if (limitsError) {
         throw new ApiError("INTERNAL_ERROR", "Failed to create technique limits", limitsError);
@@ -201,7 +268,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
           price_context: item.priceContext,
           amount: item.amount,
           notes: item.notes ?? null,
-        })),
+        })) as never[],
       );
 
       if (pricesError) {
@@ -221,7 +288,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
             effect_kind: effect.effectKind,
             operation: effect.operation,
             execution_order: effect.executionOrder ?? null,
-          })),
+          })) as never[],
         )
         .select("*");
 
@@ -229,7 +296,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
         throw new ApiError("INTERNAL_ERROR", "Failed to create technique effects", effectsError);
       }
 
-      effectRows = data;
+      effectRows = (data as unknown as DbRow<"technique_effects">[]);
     }
 
     type EffectValueInsert = {
@@ -260,7 +327,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
     if (effectValuesInsert.length > 0) {
       const { error: valuesError } = await this.client
         .from("technique_effect_values")
-        .insert(effectValuesInsert);
+        .insert(effectValuesInsert as never[]);
 
       if (valuesError) {
         throw new ApiError("INTERNAL_ERROR", "Failed to create technique effect values", valuesError);
@@ -272,7 +339,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
         dto.targetIds.map((targetId) => ({
           technique_id: techniqueId,
           target_id: targetId,
-        })),
+        })) as never[],
       );
 
       if (targetsError) {
@@ -285,7 +352,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
         dto.escapeIds.map((escapeId) => ({
           technique_id: techniqueId,
           escape_id: escapeId,
-        })),
+        })) as never[],
       );
 
       if (escapesError) {
@@ -302,12 +369,12 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
     return aggregate;
   }
 
-  async patch(id: string, dto: PatchTechniqueDto, actorId: string): Promise<TechniqueResponseDto | null> {
+  async patch(id: string, dto: PatchTechniqueDto, actorId: string): Promise<TechniqueModel | null> {
     const updatePayload: DbUpdate<"techniques"> = mapPatchDtoToTechniqueUpdate(dto, actorId);
 
     const { data, error } = await this.client
       .from("techniques")
-      .update(updatePayload)
+      .update(updatePayload as never)
       .eq("id", id)
       .select("*")
       .maybeSingle();
@@ -337,7 +404,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
             resource: item.resource,
             amount: item.amount,
             frequency: item.frequency,
-          })),
+          })) as never[],
         );
 
         if (insertCostsError) {
@@ -362,7 +429,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
             price_context: item.priceContext,
             amount: item.amount,
             notes: item.notes ?? null,
-          })),
+          })) as never[],
         );
 
         if (insertPricesError) {
@@ -390,7 +457,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
             max_uses_per_fight: dto.limits.maxUsesPerFight ?? null,
             has_card_use_limit: dto.limits.hasCardUseLimit,
             max_uses_per_card: dto.limits.maxUsesPerCard ?? null,
-          },
+          } as never,
           { onConflict: "technique_id" },
         );
 
@@ -421,13 +488,15 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
               effect_kind: effect.effectKind,
               operation: effect.operation,
               execution_order: effect.executionOrder ?? null,
-            })),
+            })) as never[],
           )
           .select("*");
 
         if (insertEffectsError || !effectRows) {
           throw new ApiError("INTERNAL_ERROR", "Failed to update technique effects", insertEffectsError);
         }
+
+        const typedEffectRows = (effectRows as unknown as DbRow<"technique_effects">[]);
 
         type EffectValueInsert = {
           effect_id: string;
@@ -437,7 +506,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
           value_token: string | null;
         };
 
-        const effectValuesInsert = effectRows
+        const effectValuesInsert = typedEffectRows
           .map((effectRow: DbRow<"technique_effects">, index: number) => {
             const value = dto.effects?.[index]?.value;
             if (!value) {
@@ -457,7 +526,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
         if (effectValuesInsert.length > 0) {
           const { error: insertValuesError } = await this.client
             .from("technique_effect_values")
-            .insert(effectValuesInsert);
+            .insert(effectValuesInsert as never[]);
 
           if (insertValuesError) {
             throw new ApiError("INTERNAL_ERROR", "Failed to update technique effect values", insertValuesError);
@@ -480,7 +549,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
           dto.targetIds.map((targetId) => ({
             technique_id: id,
             target_id: targetId,
-          })),
+          })) as never[],
         );
 
         if (insertTargetsError) {
@@ -503,7 +572,7 @@ export class SupabaseTechniquesRepository implements TechniquesRepository {
           dto.escapeIds.map((escapeId) => ({
             technique_id: id,
             escape_id: escapeId,
-          })),
+          })) as never[],
         );
 
         if (insertEscapesError) {

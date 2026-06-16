@@ -31,8 +31,8 @@ export function JutsuSpecSheet({ jutsu, onClose, canEdit = false }: JutsuSpecShe
                 <CardTitle className="text-3xl md:text-4xl">{jutsu.name}</CardTitle>
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="default">{jutsu.kind}</Badge>
-                  <Badge variant="secondary">{jutsu.techniqueTypeCode}</Badge>
-                  <Badge variant="outline">Referencia de rank</Badge>
+                  <Badge variant="secondary">{jutsu.techniqueTypeName ?? jutsu.techniqueTypeCode}</Badge>
+                  <Badge variant="outline">Rank {jutsu.rankValue ?? "N/D"}</Badge>
                 </div>
               </div>
               <Button variant="outline" size="icon" onClick={onClose} aria-label="Fechar detalhes">
@@ -44,22 +44,39 @@ export function JutsuSpecSheet({ jutsu, onClose, canEdit = false }: JutsuSpecShe
           <CardContent className="space-y-8 pt-6">
             <div className="grid gap-4 md:grid-cols-4">
               <div className="rounded-md border p-4">
-                <p className="text-xs text-muted-foreground">ID da tecnica</p>
-                <p className="text-sm font-semibold break-all">{jutsu.id}</p>
+                <p className="text-xs text-muted-foreground">Categoria</p>
+                <p className="text-sm font-semibold break-all">{jutsu.kind}</p>
               </div>
               <div className="rounded-md border p-4">
-                <p className="text-xs text-muted-foreground">ID do tipo</p>
-                <p className="text-sm font-semibold break-all">{jutsu.techniqueTypeId}</p>
+                <p className="text-xs text-muted-foreground">Tipo</p>
+                <p className="text-sm font-semibold break-all">{jutsu.techniqueTypeName ?? jutsu.techniqueTypeCode}</p>
               </div>
               <div className="rounded-md border p-4">
-                <p className="text-xs text-muted-foreground">ID do rank</p>
-                <p className="text-sm font-semibold break-all">{jutsu.rankId}</p>
+                <p className="text-xs text-muted-foreground">Rank</p>
+                <p className="text-sm font-semibold break-all">{jutsu.rankValue ?? "N/D"}</p>
               </div>
               <div className="rounded-md border p-4">
                 <p className="text-xs text-muted-foreground">Atualizado por</p>
                 <p className="text-sm font-semibold break-all">{jutsu.updatedBy ?? "Sistema"}</p>
               </div>
             </div>
+
+            <section className="space-y-2">
+              <h3 className="text-lg font-semibold">Identificacao</h3>
+              <div className="rounded-md border p-4 space-y-2">
+                <p className="text-sm text-muted-foreground break-all">
+                  <span className="font-semibold text-foreground">ID do jutsu:</span> {jutsu.id}
+                </p>
+                <p className="text-sm text-muted-foreground break-all">
+                  <span className="font-semibold text-foreground">Tipo tecnico (codigo):</span>{" "}
+                  {jutsu.techniqueTypeCode}
+                </p>
+                <p className="text-sm text-muted-foreground break-all">
+                  <span className="font-semibold text-foreground">Tipo tecnico (nome):</span>{" "}
+                  {jutsu.techniqueTypeName ?? "Nao informado"}
+                </p>
+              </div>
+            </section>
 
             <section className="space-y-2">
               <h3 className="text-lg font-semibold">Observacoes</h3>
@@ -81,7 +98,7 @@ export function JutsuSpecSheet({ jutsu, onClose, canEdit = false }: JutsuSpecShe
             <section className="rounded-md border border-accent/30 bg-accent/10 p-4">
               <h3 className="text-sm font-semibold mb-1">Referencia</h3>
               <p className="text-sm text-muted-foreground mb-3">
-                Abra o link externo de referencia deste jutsu.
+                Abra o link externo de referencia ou visite a pagina completa com todos os detalhes.
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 {jutsu.link ? (
@@ -97,6 +114,9 @@ export function JutsuSpecSheet({ jutsu, onClose, canEdit = false }: JutsuSpecShe
                     <ExternalLink size={14} />
                   </Button>
                 )}
+                <Button variant="secondary" asChild>
+                  <Link href={`/dashboard/jutsus/${jutsu.id}`}>Abrir pagina completa</Link>
+                </Button>
                 {canEdit && (
                   <Button variant="outline" asChild>
                     <Link href={`/dashboard/techniques/${jutsu.id}/edit`}>Editar jutsu</Link>

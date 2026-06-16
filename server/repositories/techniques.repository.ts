@@ -23,10 +23,16 @@ import type { TypedSupabaseClient } from "@/lib/supabase/types";
 
 type TechniqueWithTypeCode = TechniqueModel & {
   techniqueTypeCode: string;
+  techniqueTypeName: string | null;
+  rankValue: string | null;
 };
 
 type TechniqueRowWithRelations = DbRow<"techniques"> & {
-  technique_types: { code: string } | Array<{ code: string }> | null;
+  technique_types:
+    | { code: string; name: string }
+    | Array<{ code: string; name: string }>
+    | null;
+  ranks: { value: string } | Array<{ value: string }> | null;
 };
 
 export type CreateTechniqueCoreInput = {
@@ -47,6 +53,16 @@ export type PatchTechniqueCoreInput = {
   link?: string | null;
   observations?: string | null;
   updatedBy?: string | null;
+};
+
+export type TechniqueUpdateFeedItem = {
+  id: string;
+  techniqueId: string | null;
+  createdAt: string;
+  changedFields: string[];
+  techniqueName: string;
+  changedByIdentity: string;
+  changedByRole: string;
 };
 
 export class TechniqueRelationsRepository {
@@ -145,35 +161,59 @@ export class TechniqueRelationsRepository {
       .select("escape_id")
       .eq("technique_id", techniqueId);
 
-    if (error) {
-      return [];
-    }
-
+    if (error) return [];
     const rows = (data ?? []) as Array<Pick<DbRow<"technique_escapes">, "escape_id">>;
     return rows.map((row) => row.escape_id);
+  }
+
+  async getTargetsByTechniqueId(
+    techniqueId: string,
+  ): Promise<Array<{ id: string; code: string; description: string }>> {
+    const client = await this.getClient();
+    const { data, error } = await client
+      .from("technique_targets")
+      .select("targets(id,code,description)")
+      .eq("technique_id", techniqueId);
+
+    if (error) return [];
+    type Row = { targets: { id: string; code: string; description: string } | Array<{ id: string; code: string; description: string }> | null };
+    return ((data ?? []) as Row[])
+      .map((row) => (Array.isArray(row.targets) ? row.targets[0] : row.targets))
+      .filter((t): t is { id: string; code: string; description: string } => Boolean(t));
+  }
+
+  async getEscapesByTechniqueId(
+    techniqueId: string,
+  ): Promise<Array<{ id: string; code: string; description: string }>> {
+    const client = await this.getClient();
+    const { data, error } = await client
+      .from("technique_escapes")
+      .select("escapes(id,code,description)")
+      .eq("technique_id", techniqueId);
+
+    if (error) return [];
+    type Row = { escapes: { id: string; code: string; description: string } | Array<{ id: string; code: string; description: string }> | null };
+    return ((data ?? []) as Row[])
+      .map((row) => (Array.isArray(row.escapes) ? row.escapes[0] : row.escapes))
+      .filter((e): e is { id: string; code: string; description: string } => Boolean(e));
   }
 
   async getAggregateByTechniqueId(
     technique: TechniqueModel,
   ): Promise<TechniqueAggregateModel> {
-    const [costs, prices, limits, effects, targetIds, escapeIds] = await Promise.all([
-      this.getCostsByTechniqueId(technique.id),
-      this.getPricesByTechniqueId(technique.id),
-      this.getLimitsByTechniqueId(technique.id),
-      this.getEffectsByTechniqueId(technique.id),
-      this.getTargetIdsByTechniqueId(technique.id),
-      this.getEscapeIdsByTechniqueId(technique.id),
-    ]);
+    const [costs, prices, limits, effects, targetIds, escapeIds, targets, escapes] =
+      await Promise.all([
+        this.getCostsByTechniqueId(technique.id),
+        this.getPricesByTechniqueId(technique.id),
+        this.getLimitsByTechniqueId(technique.id),
+        this.getEffectsByTechniqueId(technique.id),
+        this.getTargetIdsByTechniqueId(technique.id),
+        this.getEscapeIdsByTechniqueId(technique.id),
+        this.getTargetsByTechniqueId(technique.id),
+        this.getEscapesByTechniqueId(technique.id),
+      ]);
 
-    return {
-      technique,
-      costs,
-      prices,
-      limits,
-      effects,
-      targetIds,
-      escapeIds,
-    };
+    return { technique, costs, prices, limits, effects, targetIds, escapeIds, targets, escapes };
   }
 }
 
@@ -200,10 +240,17 @@ export class TechniquesRepository {
     const relation = Array.isArray(row.technique_types)
       ? row.technique_types[0]
       : row.technique_types;
+    const rankRelation = Array.isArray(row.ranks) ? row.ranks[0] : row.ranks;
 
     return {
-      ...mapTechniqueRowToModel(row),
+      ...mapTechniqueRowToModel(row, {
+        techniqueTypeCode: relation?.code,
+        techniqueTypeName: relation?.name ?? null,
+        rankValue: rankRelation?.value ?? null,
+      }),
       techniqueTypeCode: relation?.code ?? "UNKNOWN",
+      techniqueTypeName: relation?.name ?? null,
+      rankValue: rankRelation?.value ?? null,
     };
   }
 
@@ -244,7 +291,7 @@ export class TechniquesRepository {
 
     const { data, error } = await client
       .from("techniques")
-      .select(`id,kind,technique_type_id,rank_id,name,link,observations,updated_by,created_at,updated_at,technique_types(code),${joinTable}!inner(technique_id)`)
+      .select(`id,kind,technique_type_id,rank_id,name,link,observations,updated_by,created_at,updated_at,technique_types(code,name),ranks(value),${joinTable}!inner(technique_id)`)
       .eq("kind", kind)
       .order("name", { ascending: true });
 
@@ -277,7 +324,7 @@ export class TechniquesRepository {
     const client = await this.getSupabase();
     const baseQuery = client
       .from("techniques")
-      .select("id,kind,technique_type_id,rank_id,name,link,observations,updated_by,created_at,updated_at,technique_types(code)")
+      .select("id,kind,technique_type_id,rank_id,name,link,observations,updated_by,created_at,updated_at,technique_types(code,name),ranks(value)")
       .eq("id", techniqueId);
 
     const query = kind ? baseQuery.eq("kind", kind) : baseQuery;
@@ -382,6 +429,49 @@ export class TechniquesRepository {
       .upsert(({ technique_id: techniqueId } as never), { onConflict: "technique_id" });
 
     await client.from(dropTable).delete().eq("technique_id", techniqueId);
+  }
+
+  async listUpdatesFeed(limit = 50): Promise<TechniqueUpdateFeedItem[]> {
+    const client = await this.getSupabase();
+    const { data, error } = await client
+      .from("technique_updates")
+      .select("id,technique_id,created_at,changed_fields,techniques(name),players(email,roles(name))")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      return [];
+    }
+
+    type TechniqueUpdateRow = {
+      id: string;
+      technique_id: string | null;
+      created_at: string;
+      changed_fields: string[] | null;
+      techniques: { name?: string } | { name?: string }[] | null;
+      players:
+        | { email?: string | null; roles?: { name?: string } | { name?: string }[] | null }
+        | Array<{ email?: string | null; roles?: { name?: string } | { name?: string }[] | null }>
+        | null;
+    };
+
+    return ((data ?? []) as TechniqueUpdateRow[]).map((row) => {
+      const techniqueRelation = Array.isArray(row.techniques) ? row.techniques[0] : row.techniques;
+      const playerRelation = Array.isArray(row.players) ? row.players[0] : row.players;
+      const roleRelation = Array.isArray(playerRelation?.roles)
+        ? playerRelation?.roles[0]
+        : playerRelation?.roles;
+
+      return {
+        id: row.id,
+        techniqueId: row.technique_id,
+        createdAt: row.created_at,
+        changedFields: row.changed_fields ?? [],
+        techniqueName: techniqueRelation?.name ?? "Unknown Technique",
+        changedByIdentity: playerRelation?.email ?? "Unknown User",
+        changedByRole: roleRelation?.name ?? "MEMBER",
+      };
+    });
   }
 }
 

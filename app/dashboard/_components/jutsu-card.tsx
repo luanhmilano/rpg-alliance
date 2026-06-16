@@ -44,8 +44,8 @@ export function JutsuCard({
         </p>
         <div className="grid grid-cols-2 gap-2">
           <span>Categoria: {jutsu.kind}</span>
-          <span>ID do rank: {jutsu.rankId}</span>
-          <span>ID do tipo: {jutsu.techniqueTypeId}</span>
+          <span>Rank: {jutsu.rankValue ?? "N/D"}</span>
+          <span>Tipo: {jutsu.techniqueTypeName ?? jutsu.techniqueTypeCode}</span>
           <span>Atualizado em: {updatedLabel}</span>
         </div>
       </CardContent>

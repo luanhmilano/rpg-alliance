@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,24 +41,21 @@ export default function ProfilePage() {
     setSuccess(false);
 
     try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const response = await fetch("/api/players/me", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ phone: formData.phone }),
+      });
 
-      if (!user) {
-        throw new Error("Not authenticated");
-      }
+      const payload = (await response.json()) as
+        | { ok: true }
+        | { ok: false; error?: { message?: string } };
 
-      const { error } = await supabase
-        .from("players")
-        .update({
-          phone: formData.phone,
-        })
-        .eq("id", user.id);
-
-      if (error) {
-        throw error;
+      if (!response.ok || !payload.ok) {
+        const message = payload.ok ? "Failed to update profile" : payload.error?.message ?? "Failed to update profile";
+        throw new Error(message);
       }
 
       setSuccess(true);

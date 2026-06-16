@@ -3,6 +3,7 @@ import { z } from "zod";
 import { fail, ok } from "@/app/api/_shared/responses";
 import { createClient } from "@/lib/supabase/server";
 import { ApiError } from "@/lib/types/errors";
+import { catalogsRepository } from "@/server/repositories/catalogs.repository";
 
 const signUpSchema = z.object({
   email: z.email(),
@@ -28,24 +29,16 @@ export async function POST(request: Request) {
 
     const normalizedPhone = parsed.data.phone.replace(/\D/g, "");
 
-    const [{ data: villageRow }, { data: characterRow }] = await Promise.all([
-      supabase
-        .from("villages")
-        .select("id")
-        .eq("id", parsed.data.villageId)
-        .maybeSingle(),
-      supabase
-        .from("characters")
-        .select("id")
-        .eq("id", parsed.data.characterId)
-        .maybeSingle(),
+    const [villageExists, characterExists] = await Promise.all([
+      catalogsRepository.existsVillageById(parsed.data.villageId),
+      catalogsRepository.existsCharacterById(parsed.data.characterId),
     ]);
 
-    if (!villageRow?.id) {
+    if (!villageExists) {
       throw new ApiError("VALIDATION_ERROR", "Vila selecionada nao existe");
     }
 
-    if (!characterRow?.id) {
+    if (!characterExists) {
       throw new ApiError(
         "VALIDATION_ERROR",
         "Personagem selecionado nao existe",

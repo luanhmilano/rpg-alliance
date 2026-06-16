@@ -34,13 +34,22 @@ export type TechniqueModel = {
   id: UUID;
   kind: TechniqueKind;
   techniqueTypeId: UUID;
+  techniqueTypeCode?: string;
+  techniqueTypeName?: string | null;
   name: string;
   rankId: UUID;
+  rankValue?: string | null;
   link: string | null;
   observations: string | null;
   updatedBy: UUID | null;
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
+};
+
+export type TechniqueCatalogEntryModel = {
+  id: UUID;
+  code: string;
+  description: string;
 };
 
 export type TechniqueCostModel = {
@@ -110,6 +119,8 @@ export type TechniqueAggregateModel = {
   effects: TechniqueEffectModel[];
   targetIds: UUID[];
   escapeIds: UUID[];
+  targets: TechniqueCatalogEntryModel[];
+  escapes: TechniqueCatalogEntryModel[];
 };
 
 export type TechniqueFilters = {

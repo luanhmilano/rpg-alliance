@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
+import { playersRepository } from "@/server/repositories/players.repository";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
@@ -28,13 +29,9 @@ async function RootContent() {
 
   // If already authenticated, redirect to pending or dashboard based on approval status
   if (data?.claims) {
-    const { data: profile, error: profileError } = await supabase
-      .from("players")
-      .select("approved")
-      .eq("id", data.claims.sub)
-      .single();
+    const profile = await playersRepository.getApprovedById(data.claims.sub);
 
-    if (!profileError && profile?.approved === true) {
+    if (profile?.approved === true) {
       redirect("/dashboard");
     } else {
       redirect("/pending");

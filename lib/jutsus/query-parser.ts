@@ -33,7 +33,9 @@ export type JutsuModel = {
   kind: "JUTSU";
   techniqueTypeId: UUID;
   techniqueTypeCode: JutsuTypeCode;
+  techniqueTypeName: string | null;
   rankId: UUID;
+  rankValue: string | null;
   name: string;
   link: string | null;
   observations: string | null;
