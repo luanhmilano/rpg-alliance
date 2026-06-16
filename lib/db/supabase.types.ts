@@ -132,6 +132,7 @@ export type Database = {
         Row: {
           id: string;
           kind: "JUTSU" | "SUMMONING";
+          technique_type_id: string;
           name: string;
           rank_id: string;
           link: string | null;
@@ -143,6 +144,7 @@ export type Database = {
         Insert: {
           id?: string;
           kind: "JUTSU" | "SUMMONING";
+          technique_type_id: string;
           name: string;
           rank_id: string;
           link?: string | null;
@@ -154,6 +156,7 @@ export type Database = {
         Update: {
           id?: string;
           kind?: "JUTSU" | "SUMMONING";
+          technique_type_id?: string;
           name?: string;
           rank_id?: string;
           link?: string | null;
@@ -274,6 +277,8 @@ export type Database = {
           max_active_turns: number | null;
           has_fight_use_limit: boolean;
           max_uses_per_fight: number | null;
+          has_card_use_limit: boolean;
+          max_uses_per_card: number | null;
         };
         Insert: {
           technique_id: string;
@@ -281,6 +286,8 @@ export type Database = {
           max_active_turns?: number | null;
           has_fight_use_limit?: boolean;
           max_uses_per_fight?: number | null;
+          has_card_use_limit?: boolean;
+          max_uses_per_card?: number | null;
         };
         Update: {
           technique_id?: string;
@@ -288,6 +295,57 @@ export type Database = {
           max_active_turns?: number | null;
           has_fight_use_limit?: boolean;
           max_uses_per_fight?: number | null;
+          has_card_use_limit?: boolean;
+          max_uses_per_card?: number | null;
+        };
+      };
+      technique_prices: {
+        Row: {
+          id: string;
+          technique_id: string;
+          price_context: "TECHNIQUE_PURCHASE" | "SUMMON_UNIT_PURCHASE" | "OTHER";
+          amount: number;
+          notes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          technique_id: string;
+          price_context: "TECHNIQUE_PURCHASE" | "SUMMON_UNIT_PURCHASE" | "OTHER";
+          amount: number;
+          notes?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          technique_id?: string;
+          price_context?: "TECHNIQUE_PURCHASE" | "SUMMON_UNIT_PURCHASE" | "OTHER";
+          amount?: number;
+          notes?: string | null;
+          created_at?: string;
+        };
+      };
+      technique_types: {
+        Row: {
+          id: string;
+          code: "NINJUTSU" | "TAIJUTSU" | "GENJUTSU" | "DOJUTSU" | "SUMMONING";
+          name: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          code: "NINJUTSU" | "TAIJUTSU" | "GENJUTSU" | "DOJUTSU" | "SUMMONING";
+          name: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          code?: "NINJUTSU" | "TAIJUTSU" | "GENJUTSU" | "DOJUTSU" | "SUMMONING";
+          name?: string;
+          created_at?: string;
+          updated_at?: string;
         };
       };
       technique_effects: {

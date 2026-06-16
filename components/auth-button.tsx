@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { UserCircle2 } from "lucide-react";
 import { Button } from "./ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { LogoutButton } from "./logout-button";
@@ -12,8 +13,12 @@ export async function AuthButton() {
   const user = data?.claims;
 
   return user ? (
-    <div className="flex items-center gap-4">
-      Hey, {user.email}!
+    <div className="flex items-center gap-2">
+      <Button asChild size="icon" variant="ghost" aria-label="Perfil">
+        <Link href="/dashboard/profile">
+          <UserCircle2 className="h-4 w-4" />
+        </Link>
+      </Button>
       <LogoutButton />
     </div>
   ) : (

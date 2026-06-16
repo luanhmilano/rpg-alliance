@@ -3,7 +3,6 @@ import { requireApprovedProfile } from "@/lib/access-control";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InfoIcon } from "lucide-react";
-import { jutsuUpdatesMock } from "@/data/jutsu-updates-mock";
 
 type TechniqueUpdate = {
   id: string;
@@ -20,7 +19,6 @@ async function UpdatesFeedContent() {
   const supabase = await createClient();
 
   let updates: TechniqueUpdate[] = [];
-  let usesMockData = false;
 
   // Try to fetch real data from database
   type DBUpdate = {
@@ -32,7 +30,7 @@ async function UpdatesFeedContent() {
     players: { email: string | null; roles: { name: string } | null } | null;
   };
 
-  const { data: dbUpdates, error } = await supabase
+  const { data: dbUpdates } = await supabase
     .from("technique_updates")
     .select(
       `
@@ -48,28 +46,16 @@ async function UpdatesFeedContent() {
     .limit(50);
 
   // If database is not yet populated or error occurs, use mock data
-  if (error || !dbUpdates || dbUpdates.length === 0) {
-    usesMockData = true;
-    updates = jutsuUpdatesMock.map((mock) => ({
-      id: mock.id,
-      technique_id: mock.jutsu_id,
-      created_at: mock.created_at,
-      changed_fields: mock.changed_fields,
-      technique_name: mock.jutsu_name,
-      changed_by_identity: mock.changed_by_identity,
-      changed_by_role: mock.changed_by_role,
-    }));
-  } else {
-    updates = (dbUpdates as unknown as DBUpdate[]).map((update) => ({
-      id: update.id,
-      technique_id: update.technique_id,
-      created_at: update.created_at,
-      changed_fields: update.changed_fields,
-      technique_name: update.techniques?.name || "Unknown Technique",
-      changed_by_identity: update.players?.email || "Unknown User",
-      changed_by_role: update.players?.roles?.name || "MEMBER",
-    }));
-  }
+
+  updates = (dbUpdates as unknown as DBUpdate[]).map((update) => ({
+    id: update.id,
+    technique_id: update.technique_id,
+    created_at: update.created_at,
+    changed_fields: update.changed_fields,
+    technique_name: update.techniques?.name || "Unknown Technique",
+    changed_by_identity: update.players?.email || "Unknown User",
+    changed_by_role: update.players?.roles?.name || "MEMBER",
+  }));
 
   return (
     <div className="flex-1 w-full flex flex-col gap-8">
@@ -79,13 +65,6 @@ async function UpdatesFeedContent() {
           Recent changes made by KAGEs to jutsus
         </p>
       </div>
-
-      {usesMockData && (
-        <div className="bg-accent/10 text-accent-foreground text-sm p-3 rounded-md flex gap-2 items-start">
-          <InfoIcon size={16} className="flex-shrink-0 mt-0.5" />
-          <p>Showing mock data. Connect to Supabase to see live updates.</p>
-        </div>
-      )}
 
       {updates && updates.length > 0 ? (
         <div className="space-y-3">

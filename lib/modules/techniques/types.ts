@@ -6,21 +6,34 @@ import type {
   EFFECT_KINDS,
   EFFECT_OPERATIONS,
   EFFECT_VALUE_TYPES,
+  PRICE_CONTEXTS,
   TARGET_SCOPES,
   TECHNIQUE_KINDS,
+  TECHNIQUE_TYPE_CODES,
 } from "@/lib/modules/techniques/constants";
 
 export type TechniqueKind = (typeof TECHNIQUE_KINDS)[number];
+export type TechniqueTypeCode = (typeof TECHNIQUE_TYPE_CODES)[number];
 export type TechniqueCostResource = (typeof COST_RESOURCES)[number];
 export type TechniqueCostFrequency = (typeof COST_FREQUENCIES)[number];
+export type TechniquePriceContext = (typeof PRICE_CONTEXTS)[number];
 export type TechniqueTargetScope = (typeof TARGET_SCOPES)[number];
 export type TechniqueEffectKind = (typeof EFFECT_KINDS)[number];
 export type TechniqueEffectOperation = (typeof EFFECT_OPERATIONS)[number];
 export type TechniqueEffectValueType = (typeof EFFECT_VALUE_TYPES)[number];
 
+export type TechniqueTypeModel = {
+  id: UUID;
+  code: TechniqueTypeCode;
+  name: string;
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+};
+
 export type TechniqueModel = {
   id: UUID;
   kind: TechniqueKind;
+  techniqueTypeId: UUID;
   name: string;
   rankId: UUID;
   link: string | null;
@@ -45,6 +58,17 @@ export type TechniqueLimitsModel = {
   maxActiveTurns: number | null;
   hasFightUseLimit: boolean;
   maxUsesPerFight: number | null;
+  hasCardUseLimit: boolean;
+  maxUsesPerCard: number | null;
+};
+
+export type TechniquePriceModel = {
+  id: UUID;
+  techniqueId: UUID;
+  priceContext: TechniquePriceContext;
+  amount: number;
+  notes: string | null;
+  createdAt: ISODateTime;
 };
 
 export type TechniqueEffectValueModel =
@@ -81,6 +105,7 @@ export type TechniqueEffectModel = {
 export type TechniqueAggregateModel = {
   technique: TechniqueModel;
   costs: TechniqueCostModel[];
+  prices: TechniquePriceModel[];
   limits: TechniqueLimitsModel | null;
   effects: TechniqueEffectModel[];
   targetIds: UUID[];
@@ -89,6 +114,7 @@ export type TechniqueAggregateModel = {
 
 export type TechniqueFilters = {
   kind?: TechniqueKind;
+  techniqueTypeId?: UUID;
   rankId?: UUID;
   q?: string;
 };
@@ -96,5 +122,6 @@ export type TechniqueFilters = {
 export type TechniqueRow = DbRow<"techniques">;
 export type TechniqueCostRow = DbRow<"technique_costs">;
 export type TechniqueLimitsRow = DbRow<"technique_limits">;
+export type TechniquePriceRow = DbRow<"technique_prices">;
 export type TechniqueEffectRow = DbRow<"technique_effects">;
 export type TechniqueEffectValueRow = DbRow<"technique_effect_values">;

@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { revalidatePath } from "next/cache";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,42 @@ type PlayerRow = {
   characterId: string | null;
   characterName: string;
 };
+
+async function updateApprovalStatus(formData: FormData) {
+  "use server";
+
+  await requireKageProfile();
+
+  const profileId = formData.get("profileId");
+  const status = formData.get("status");
+
+  if (typeof profileId !== "string") {
+    return;
+  }
+
+  if (status !== "APPROVED" && status !== "REJECTED") {
+    return;
+  }
+
+  const supabase = await createClient();
+  const { data: memberRole } = await supabase
+    .from("roles")
+    .select("id")
+    .eq("name", "MEMBER")
+    .maybeSingle();
+
+  if (!memberRole?.id) return;
+
+  await supabase
+    .from("players")
+    .update({ approved: status === "APPROVED" })
+    .eq("id", profileId)
+    .eq("role_id", memberRole.id);
+
+  revalidatePath("/dashboard/kage");
+  revalidatePath("/pending");
+  revalidatePath("/dashboard");
+}
 
 async function KageContent() {
   const profile = await requireKageProfile();
@@ -97,6 +134,20 @@ async function KageContent() {
         <SummaryItem label="Jogadores" value={String(players.length)} />
         <SummaryItem label="Vilas" value={String(villages.length)} />
         <SummaryItem label="Personagens" value={String(characters.length)} />
+      </section>
+
+      <section>
+        <Card>
+          <CardHeader>
+            <CardTitle>Aprovações pendentes</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Revisão de novos membros movida para o console do KAGE.
+            </p>
+            <PendingApprovalsTable action={updateApprovalStatus} />
+          </CardContent>
+        </Card>
       </section>
 
       <section>
@@ -316,6 +367,89 @@ async function KageContent() {
           </CardContent>
         </Card>
       </section>
+    </div>
+  );
+}
+
+async function PendingApprovalsTable({
+  action,
+}: {
+  action: (formData: FormData) => Promise<void>;
+}) {
+  const supabase = await createClient();
+  const { data: pendingProfiles, error } = await supabase
+    .from("players")
+    .select("id,email,phone,role_id,approved,created_at,roles(name)")
+    .eq("approved", false)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    return <p className="text-sm text-destructive">{error.message}</p>;
+  }
+
+  if (!pendingProfiles || pendingProfiles.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        No pending users right now.
+      </p>
+    );
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b text-left">
+            <th className="py-2 pr-4">Identity</th>
+            <th className="py-2 pr-4">Role</th>
+            <th className="py-2 pr-4">Status</th>
+            <th className="py-2 pr-4">Created</th>
+            <th className="py-2">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {pendingProfiles.map((profile) => (
+            <tr className="border-b" key={profile.id}>
+              <td className="py-3 pr-4">
+                {profile.email ?? profile.phone ?? profile.id}
+              </td>
+              <td className="py-3 pr-4">
+                {profile.roles?.[0]?.name ?? profile.role_id ?? "MEMBER"}
+              </td>
+              <td className="py-3 pr-4">
+                {profile.approved ? "APPROVED" : "PENDING"}
+              </td>
+              <td className="py-3 pr-4">
+                {new Date(profile.created_at).toLocaleString()}
+              </td>
+              <td className="py-3">
+                <div className="flex flex-wrap gap-2">
+                  <form action={action}>
+                    <input type="hidden" name="profileId" value={profile.id} />
+                    <input type="hidden" name="status" value="APPROVED" />
+                    <button
+                      className="rounded border px-3 py-1 text-xs hover:bg-accent"
+                      type="submit"
+                    >
+                      Approve
+                    </button>
+                  </form>
+                  <form action={action}>
+                    <input type="hidden" name="profileId" value={profile.id} />
+                    <input type="hidden" name="status" value="REJECTED" />
+                    <button
+                      className="rounded border px-3 py-1 text-xs hover:bg-accent"
+                      type="submit"
+                    >
+                      Reject
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
