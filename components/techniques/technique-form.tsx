@@ -130,6 +130,56 @@ const defaultEffectValues: EffectFormValues = {
   valueToken: "",
 };
 
+const EFFECT_ATTRIBUTES = ["ATK", "DEF", "AG", "HP", "CK"] as const;
+
+const COST_RESOURCE_LABEL: Record<(typeof COST_RESOURCES)[number], string> = {
+  CK: "Chakra",
+  HP: "Vida",
+};
+
+const COST_FREQUENCY_LABEL: Record<(typeof COST_FREQUENCIES)[number], string> = {
+  ONE_TIME: "Uso único",
+  ACTIVATION: "Ativação",
+  PER_TURN: "Por turno",
+};
+
+const PRICE_CONTEXT_LABEL: Record<(typeof PRICE_CONTEXTS)[number], string> = {
+  TECHNIQUE_PURCHASE: "Compra da técnica",
+  SUMMON_UNIT_PURCHASE: "Compra de invocação",
+  OTHER: "Outro contexto",
+};
+
+const TARGET_SCOPE_LABEL: Record<(typeof TARGET_SCOPES)[number], string> = {
+  SELF: "Si mesmo",
+  ALLY: "Aliado",
+  ENEMY: "Inimigo",
+  AREA: "Área",
+};
+
+const EFFECT_KIND_LABEL: Record<(typeof EFFECT_KINDS)[number], string> = {
+  FIXED: "Fixo",
+  BUFF: "Buff",
+  BARRIER: "Barreira",
+  SPECIAL: "Especial",
+};
+
+const EFFECT_OPERATION_LABEL: Record<(typeof EFFECT_OPERATIONS)[number], string> = {
+  SET: "Definir",
+  ADD: "Somar",
+  SUB: "Subtrair",
+  MULTIPLY: "Multiplicar",
+};
+
+const EFFECT_VALUE_TYPE_LABEL: Record<(typeof EFFECT_VALUE_TYPES)[number], string> = {
+  NUMERIC: "Numérico",
+  TEXT: "Texto",
+  TOKEN: "Token",
+};
+
+const EFFECT_VALUE_TYPES_FOR_SELECTION = EFFECT_VALUE_TYPES.filter(
+  (valueType): valueType is Exclude<(typeof EFFECT_VALUE_TYPES)[number], "TOKEN"> => valueType !== "TOKEN",
+);
+
 export function TechniqueForm({
   mode,
   rankOptions,
@@ -369,9 +419,13 @@ export function TechniqueForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       <Card>
         <CardContent className="pt-6 space-y-6">
+          <p className="text-sm text-muted-foreground">
+            Preencha os dados básicos da técnica para identificar o tipo, rank e origem da referência.
+            O campo de observações é ideal para regras resumidas e notas importantes para leitura rápida.
+          </p>
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <Label htmlFor="techniqueTypeId">Tipo tecnico</Label>
+              <Label htmlFor="techniqueTypeId">Tipo técnico</Label>
               <select
                 id="techniqueTypeId"
                 value={values.techniqueTypeId}
@@ -384,7 +438,7 @@ export function TechniqueForm({
                 <option value="">Selecione um tipo</option>
                 {techniqueTypeOptions.map((item) => (
                   <option key={item.id} value={item.id}>
-                    {item.name}
+                    {item.name} ({item.code})
                   </option>
                 ))}
               </select>
@@ -449,7 +503,10 @@ export function TechniqueForm({
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold">Custos</h2>
-              <p className="text-sm text-muted-foreground">Adicione CK/HP conforme necessário.</p>
+              <p className="text-sm text-muted-foreground">
+                Defina quanto a técnica consome por uso. Você pode cadastrar múltiplos custos para representar
+                combinações como Chakra + Vida no mesmo efeito de ativação.
+              </p>
             </div>
             <Button type="button" variant="outline" onClick={addCost}>
               Adicionar custo
@@ -473,7 +530,7 @@ export function TechniqueForm({
                 >
                   {COST_RESOURCES.map((resource) => (
                     <option key={resource} value={resource}>
-                      {resource}
+                      {COST_RESOURCE_LABEL[resource]}
                     </option>
                   ))}
                 </select>
@@ -491,7 +548,7 @@ export function TechniqueForm({
               </div>
 
               <div className="space-y-2">
-                <Label>Frequencia</Label>
+                <Label>Frequência</Label>
                 <select
                   value={item.frequency}
                   onChange={(event) =>
@@ -501,7 +558,7 @@ export function TechniqueForm({
                 >
                   {COST_FREQUENCIES.map((frequency) => (
                     <option key={frequency} value={frequency}>
-                      {frequency}
+                      {COST_FREQUENCY_LABEL[frequency]}
                     </option>
                   ))}
                 </select>
@@ -520,15 +577,18 @@ export function TechniqueForm({
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold">Preços</h2>
-              <p className="text-sm text-muted-foreground">Use contextos diferentes para técnica, corpo e outros.</p>
+              <p className="text-sm text-muted-foreground">
+                Cadastre valores por contexto de compra para manter a economia balanceada.
+                Use notas para explicar quando aquele preço deve ser aplicado em jogo.
+              </p>
             </div>
             <Button type="button" variant="outline" onClick={addPrice}>
-              Adicionar preco
+              Adicionar preço
             </Button>
           </div>
 
           {values.prices.length === 0 && (
-            <p className="text-sm text-muted-foreground">Nenhum preco cadastrado.</p>
+            <p className="text-sm text-muted-foreground">Nenhum preço cadastrado.</p>
           )}
 
           {values.prices.map((item, index) => (
@@ -544,7 +604,7 @@ export function TechniqueForm({
                 >
                   {PRICE_CONTEXTS.map((context) => (
                     <option key={context} value={context}>
-                      {context}
+                      {PRICE_CONTEXT_LABEL[context]}
                     </option>
                   ))}
                 </select>
@@ -576,6 +636,10 @@ export function TechniqueForm({
 
       <Card>
         <CardContent className="pt-6 space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Ative limites quando a técnica não puder ser utilizada livremente. Essa configuração evita abusos
+            e ajuda a tornar o combate mais estratégico por turno, luta ou card.
+          </p>
           <div className="flex items-center gap-3">
             <input
               id="limitsEnabled"
@@ -660,8 +724,12 @@ export function TechniqueForm({
       <Card>
         <CardContent className="pt-6 space-y-4">
           <h2 className="text-lg font-semibold">Alvos</h2>
+          <p className="text-sm text-muted-foreground">
+            Selecione todos os tipos de alvo permitidos. Esses dados ajudam na validação da técnica
+            e deixam claro em quais cenários ela pode ser aplicada.
+          </p>
           {targetOptions.length === 0 && (
-            <p className="text-sm text-muted-foreground">Nenhum alvo disponivel no catalogo.</p>
+            <p className="text-sm text-muted-foreground">Nenhum alvo disponível no catálogo.</p>
           )}
           {targetOptions.length > 0 && (
             <DropdownMenu>
@@ -689,8 +757,12 @@ export function TechniqueForm({
       <Card>
         <CardContent className="pt-6 space-y-4">
           <h2 className="text-lg font-semibold">Escapes</h2>
+          <p className="text-sm text-muted-foreground">
+            Defina quais respostas defensivas podem interagir com esta técnica.
+            Isso orienta a resolução da ação durante combates e disputas.
+          </p>
           {escapeOptions.length === 0 && (
-            <p className="text-sm text-muted-foreground">Nenhum escape disponivel no catalogo.</p>
+            <p className="text-sm text-muted-foreground">Nenhum escape disponível no catálogo.</p>
           )}
           {escapeOptions.length > 0 && (
             <DropdownMenu>
@@ -720,7 +792,10 @@ export function TechniqueForm({
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold">Efeitos</h2>
-              <p className="text-sm text-muted-foreground">Agora o cadastro permite zero ou mais efeitos.</p>
+              <p className="text-sm text-muted-foreground">
+                Cadastre os efeitos que a técnica aplica no alvo. Para cada efeito, escolha escopo,
+                atributo afetado, operação e tipo de valor para refletir corretamente a regra de batalha.
+              </p>
             </div>
             <Button type="button" variant="outline" onClick={addEffect}>
               Adicionar efeito
@@ -752,7 +827,7 @@ export function TechniqueForm({
                   >
                     {TARGET_SCOPES.map((scope) => (
                       <option key={scope} value={scope}>
-                        {scope}
+                        {TARGET_SCOPE_LABEL[scope]}
                       </option>
                     ))}
                   </select>
@@ -769,7 +844,7 @@ export function TechniqueForm({
                   >
                     {EFFECT_KINDS.map((kind) => (
                       <option key={kind} value={kind}>
-                        {kind}
+                        {EFFECT_KIND_LABEL[kind]}
                       </option>
                     ))}
                   </select>
@@ -779,14 +854,22 @@ export function TechniqueForm({
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Atributo</Label>
-                  <Input
+                    <select
                     value={effect.affectedAttribute}
                     onChange={(event) => updateEffect(index, "affectedAttribute", event.target.value)}
-                  />
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="">Selecione um atributo</option>
+                      {EFFECT_ATTRIBUTES.map((attribute) => (
+                        <option key={attribute} value={attribute}>
+                          {attribute}
+                        </option>
+                      ))}
+                    </select>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Operacao</Label>
+                    <Label>Operação</Label>
                   <select
                     value={effect.operation}
                     onChange={(event) =>
@@ -796,7 +879,7 @@ export function TechniqueForm({
                   >
                     {EFFECT_OPERATIONS.map((operation) => (
                       <option key={operation} value={operation}>
-                        {operation}
+                          {EFFECT_OPERATION_LABEL[operation]}
                       </option>
                     ))}
                   </select>
@@ -812,17 +895,20 @@ export function TechniqueForm({
                   }
                   className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
-                  {EFFECT_VALUE_TYPES.map((valueType) => (
+                  {EFFECT_VALUE_TYPES_FOR_SELECTION.map((valueType) => (
                     <option key={valueType} value={valueType}>
-                      {valueType}
+                      {EFFECT_VALUE_TYPE_LABEL[valueType]}
                     </option>
                   ))}
+                  {effect.valueType === "TOKEN" && (
+                    <option value="TOKEN">Token (legado)</option>
+                  )}
                 </select>
               </div>
 
               {effect.valueType === "NUMERIC" && (
                 <div className="space-y-2">
-                  <Label>Valor numerico</Label>
+                  <Label>Valor numérico</Label>
                   <Input
                     type="number"
                     value={effect.valueNumeric}
