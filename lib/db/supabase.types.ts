@@ -127,7 +127,6 @@ export type Database = {
           updated_at?: string;
         };
       };
-
       techniques: {
         Row: {
           id: string;

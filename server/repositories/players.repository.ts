@@ -5,8 +5,6 @@ import { createClient } from "@/lib/supabase/server";
 import type { TypedSupabaseClient } from "@/lib/supabase/types";
 import type { PlayerProfileDto, UpdatePlayerByKageInput } from "@/lib/types/player";
 
-export type { PlayerProfileDto, UpdatePlayerByKageInput };
-
 class PlayersRepository {
   private supabasePromise: Promise<TypedSupabaseClient> | null = null;
 

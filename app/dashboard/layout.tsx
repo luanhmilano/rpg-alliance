@@ -1,7 +1,5 @@
-import { EnvVarWarning } from "@/components/env-var-warning";
 import { AuthButton } from "@/components/auth-button";
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import { hasEnvVars } from "@/lib/utils";
 import { requireApprovedProfile } from "@/lib/access-control";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -24,14 +22,8 @@ async function DashboardNav() {
       <div className="flex gap-4 items-center">
         <Suspense>
           <ThemeSwitcher />
+          <AuthButton />
         </Suspense>
-        {hasEnvVars ? (
-          <Suspense>
-            <AuthButton />
-          </Suspense>
-        ) : (
-          <EnvVarWarning />
-        )}
       </div>
     </div>
   );

@@ -5,23 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { playersRepository } from "@/server/repositories/players.repository";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-
-const alliancePillars = [
-  {
-    title: "Sunagakure",
-    description: "Aldeia da Areia",
-  },
-  {
-    title: "Kirigakure",
-    description: "Aldeia da Névoa",
-  },
-  {
-    title: "Konogakure",
-    description: "Aldeia da Folha",
-  },
-];
-
-const featuredClans = ["Uchiha", "Hyuga", "Senju", "Uzumaki"];
+import { alliancePillars, featuredClans } from "./constants";
 
 async function RootContent() {
   const supabase = await createClient();
@@ -75,7 +59,7 @@ async function RootContent() {
                 variant="outline"
                 className="h-11 border-primary/30 bg-background/70 px-8 text-sm uppercase tracking-[0.22em]"
               >
-                <Link href="/auth/sign-up">Register</Link>
+                <Link href="/auth/sign-up">Cadastro</Link>
               </Button>
             </div>
 
@@ -85,7 +69,7 @@ async function RootContent() {
                   Gameplay
                 </p>
                 <p className="mt-2 text-lg font-semibold">
-                  Ganhe Ryos fazendo missões.
+                  Ganhe Ryo fazendo missões.
                 </p>
               </div>
               <div className="rounded-xl border border-border bg-card/80 p-4 backdrop-blur">
@@ -219,7 +203,7 @@ export default function Home() {
               <Link href="/auth/login">Login</Link>
             </Button>
             <Button asChild className="uppercase tracking-[0.18em]">
-              <Link href="/auth/sign-up">Register</Link>
+              <Link href="/auth/sign-up">Cadastro</Link>
             </Button>
             <Suspense>
               <ThemeSwitcher />
@@ -229,7 +213,7 @@ export default function Home() {
       </nav>
       <Suspense
         fallback={
-          <div className="mt-8 text-sm text-muted-foreground">Loading...</div>
+          <div className="mt-8 text-sm text-muted-foreground">Carregando...</div>
         }
       >
         <RootContent />
