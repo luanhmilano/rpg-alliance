@@ -42,7 +42,7 @@ export function JutsuCard({
         <p className="text-muted-foreground">
           {jutsu.observations ?? "Sem observacoes cadastradas para este jutsu."}
         </p>
-        <div className=\"grid grid-cols-1 md:grid-cols-2 gap-2\">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           <span>Categoria: {jutsu.kind}</span>
           <span>Rank: {jutsu.rankValue ?? "N/D"}</span>
           <span>Tipo: {jutsu.techniqueTypeName ?? jutsu.techniqueTypeCode}</span>

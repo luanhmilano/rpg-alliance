@@ -43,7 +43,7 @@ export function SummoningCard({
         <p className="text-muted-foreground">
           {summoning.observations ?? "Sem observações cadastradas para esta invocação."}
         </p>
-        <div className=\"grid grid-cols-1 md:grid-cols-2 gap-2\">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           <span>Categoria: {summoning.kind}</span>
           <span>Rank: {summoning.rankValue ?? "N/D"}</span>
           <span>Tipo: {summoning.techniqueTypeName ?? summoning.techniqueTypeCode}</span>
