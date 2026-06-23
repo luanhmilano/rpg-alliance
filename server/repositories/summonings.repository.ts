@@ -7,7 +7,9 @@ export type SummoningModel = {
   kind: "SUMMONING";
   techniqueTypeId: string;
   techniqueTypeCode: "SUMMONING";
+  techniqueTypeName: string | null;
   rankId: string;
+  rankValue: string | null;
   name: string;
   link: string | null;
   observations: string | null;
@@ -39,7 +41,9 @@ export class SummoningsRepository {
         row.techniqueTypeCode === "SUMMONING"
           ? "SUMMONING"
           : DEFAULT_SUMMONING_TYPE_CODE,
+      techniqueTypeName: row.techniqueTypeName,
       rankId: row.rankId,
+      rankValue: row.rankValue,
       name: row.name,
       link: row.link,
       observations: row.observations,

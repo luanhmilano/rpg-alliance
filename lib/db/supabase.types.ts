@@ -247,7 +247,7 @@ export type Database = {
         Row: {
           id: string;
           technique_id: string;
-          resource: "CK" | "HP";
+          resource: "CK" | "HP" | "AG";
           amount: number;
           frequency: "ONE_TIME" | "ACTIVATION" | "PER_TURN";
           created_at: string;
@@ -255,7 +255,7 @@ export type Database = {
         Insert: {
           id?: string;
           technique_id: string;
-          resource: "CK" | "HP";
+          resource: "CK" | "HP" | "AG";
           amount: number;
           frequency: "ONE_TIME" | "ACTIVATION" | "PER_TURN";
           created_at?: string;
@@ -263,7 +263,7 @@ export type Database = {
         Update: {
           id?: string;
           technique_id?: string;
-          resource?: "CK" | "HP";
+          resource?: "CK" | "HP" | "AG";
           amount?: number;
           frequency?: "ONE_TIME" | "ACTIVATION" | "PER_TURN";
           created_at?: string;

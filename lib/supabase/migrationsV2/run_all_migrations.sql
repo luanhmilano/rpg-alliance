@@ -92,7 +92,7 @@ create table if not exists public.summonings (
 create table if not exists public.technique_costs (
   id uuid primary key default gen_random_uuid(),
   technique_id uuid not null references public.techniques(id) on delete cascade,
-  resource text not null check (resource in ('CK', 'HP')),
+  resource text not null check (resource in ('CK', 'HP', 'AG')),
   amount numeric not null check (amount >= 0),
   frequency text not null check (frequency in ('ONE_TIME', 'ACTIVATION', 'PER_TURN')),
   created_at timestamptz not null default now()

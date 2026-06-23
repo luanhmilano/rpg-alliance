@@ -23,6 +23,8 @@ import {
   TARGET_SCOPES,
 } from "@/lib/modules/techniques/constants";
 
+export type TechniqueFormVariant = "JUTSU" | "SUMMONING";
+
 type RankOption = {
   id: string;
   value: string;
@@ -61,7 +63,16 @@ type LimitsFormValues = {
   maxUsesPerCard: string;
 };
 
-type TechniqueFormValues = {
+type PrimaryAttribute = (typeof EFFECT_ATTRIBUTES)[number];
+
+type PrimaryAttributeFormValues = {
+  targetScope: (typeof TARGET_SCOPES)[number];
+  effectKind: (typeof EFFECT_KINDS)[number];
+  operation: (typeof EFFECT_OPERATIONS)[number];
+  valueNumeric: string;
+};
+
+export type TechniqueFormValues = {
   techniqueTypeId: string;
   name: string;
   rankId: string;
@@ -71,12 +82,14 @@ type TechniqueFormValues = {
   prices: PriceFormValues[];
   limitsEnabled: boolean;
   limits: LimitsFormValues;
+  primaryAttributes: Partial<Record<PrimaryAttribute, PrimaryAttributeFormValues>>;
   effects: EffectFormValues[];
   targetIds: string[];
   escapeIds: string[];
 };
 
-type TechniqueFormProps = {
+export type TechniqueFormProps = {
+  variant: TechniqueFormVariant;
   mode: "create" | "edit";
   rankOptions: RankOption[];
   techniqueTypeOptions: TechniqueTypeOption[];
@@ -114,6 +127,7 @@ const defaultTechniqueValues: TechniqueFormValues = {
     hasCardUseLimit: false,
     maxUsesPerCard: "",
   },
+  primaryAttributes: {},
   effects: [],
   targetIds: [],
   escapeIds: [],
@@ -132,9 +146,51 @@ const defaultEffectValues: EffectFormValues = {
 
 const EFFECT_ATTRIBUTES = ["ATK", "DEF", "AG", "HP", "CK"] as const;
 
+const PRIMARY_ATTRIBUTE_CONFIG: Record<
+  PrimaryAttribute,
+  {
+    label: string;
+    defaultTargetScope: (typeof TARGET_SCOPES)[number];
+    defaultEffectKind: (typeof EFFECT_KINDS)[number];
+    defaultOperation: (typeof EFFECT_OPERATIONS)[number];
+  }
+> = {
+  ATK: {
+    label: "ATK",
+    defaultTargetScope: "ENEMY",
+    defaultEffectKind: "FIXED",
+    defaultOperation: "SET",
+  },
+  DEF: {
+    label: "DEF",
+    defaultTargetScope: "SELF",
+    defaultEffectKind: "BARRIER",
+    defaultOperation: "SET",
+  },
+  AG: {
+    label: "AG",
+    defaultTargetScope: "SELF",
+    defaultEffectKind: "BUFF",
+    defaultOperation: "SET",
+  },
+  HP: {
+    label: "HP",
+    defaultTargetScope: "SELF",
+    defaultEffectKind: "FIXED",
+    defaultOperation: "SET",
+  },
+  CK: {
+    label: "CK",
+    defaultTargetScope: "SELF",
+    defaultEffectKind: "FIXED",
+    defaultOperation: "SET",
+  },
+};
+
 const COST_RESOURCE_LABEL: Record<(typeof COST_RESOURCES)[number], string> = {
   CK: "Chakra",
   HP: "Vida",
+  AG: "Agilidade",
 };
 
 const COST_FREQUENCY_LABEL: Record<(typeof COST_FREQUENCIES)[number], string> = {
@@ -180,7 +236,145 @@ const EFFECT_VALUE_TYPES_FOR_SELECTION = EFFECT_VALUE_TYPES.filter(
   (valueType): valueType is Exclude<(typeof EFFECT_VALUE_TYPES)[number], "TOKEN"> => valueType !== "TOKEN",
 );
 
+const VARIANT_COPY: Record<
+  TechniqueFormVariant,
+  {
+    entityLabel: string;
+    basicsDescription: string;
+    primaryAttributesTitle: string;
+    primaryAttributesDescription: string;
+    extraEffectsTitle: string;
+    extraEffectsDescription: string;
+    submitCreateLabel: string;
+  }
+> = {
+  JUTSU: {
+    entityLabel: "jutsu",
+    basicsDescription:
+      "Preencha os dados básicos do jutsu e escolha um tipo técnico compatível com regras de combate, rank e referência.",
+    primaryAttributesTitle: "Atributos principais",
+    primaryAttributesDescription:
+      "Use esta seção para registrar atributos estruturados do jutsu, como ATK em técnicas ofensivas ou DEF em técnicas defensivas. Eles continuam sendo persistidos em technique_effects.",
+    extraEffectsTitle: "Efeitos complementares",
+    extraEffectsDescription:
+      "Cadastre efeitos adicionais quando o jutsu tiver comportamento especial além dos atributos principais, como texto livre, buffs extras ou composições não estruturadas.",
+    submitCreateLabel: "Criar jutsu",
+  },
+  SUMMONING: {
+    entityLabel: "invocação",
+    basicsDescription:
+      "Preencha os dados básicos da invocação e mantenha os atributos da unidade claros para compra, uso e leitura em ficha.",
+    primaryAttributesTitle: "Atributos da invocação",
+    primaryAttributesDescription:
+      "Os cinco atributos principais da invocação são opcionais, mas esta seção deve ser a fonte padrão para ATK, DEF, AG, HP e CK quando existirem.",
+    extraEffectsTitle: "Efeitos complementares",
+    extraEffectsDescription:
+      "Use efeitos complementares apenas para regras especiais que não caibam nos atributos principais da invocação.",
+    submitCreateLabel: "Criar invocação",
+  },
+};
+
+function hasPrimaryAttributeValue(
+  value?: PrimaryAttributeFormValues,
+): value is PrimaryAttributeFormValues {
+  return Boolean(value?.valueNumeric.trim());
+}
+
+function createPrimaryAttributeDefaults(
+  attribute: PrimaryAttribute,
+  current?: Partial<PrimaryAttributeFormValues>,
+): PrimaryAttributeFormValues {
+  const config = PRIMARY_ATTRIBUTE_CONFIG[attribute];
+
+  return {
+    targetScope: current?.targetScope ?? config.defaultTargetScope,
+    effectKind: current?.effectKind ?? config.defaultEffectKind,
+    operation: current?.operation ?? config.defaultOperation,
+    valueNumeric: current?.valueNumeric ?? "",
+  };
+}
+
+function normalizeTechniqueFormValues(
+  initialValues: Partial<TechniqueFormValues> | undefined,
+): TechniqueFormValues {
+  const mergedValues: TechniqueFormValues = {
+    ...defaultTechniqueValues,
+    ...initialValues,
+    limits: {
+      ...defaultTechniqueValues.limits,
+      ...initialValues?.limits,
+    },
+    primaryAttributes: {
+      ...defaultTechniqueValues.primaryAttributes,
+      ...initialValues?.primaryAttributes,
+    },
+    effects: initialValues?.effects ?? defaultTechniqueValues.effects,
+    costs: initialValues?.costs ?? defaultTechniqueValues.costs,
+    prices: initialValues?.prices ?? defaultTechniqueValues.prices,
+    targetIds: initialValues?.targetIds ?? defaultTechniqueValues.targetIds,
+    escapeIds: initialValues?.escapeIds ?? defaultTechniqueValues.escapeIds,
+  };
+
+  const primaryAttributes: Partial<Record<PrimaryAttribute, PrimaryAttributeFormValues>> = {
+    ...mergedValues.primaryAttributes,
+  };
+  const remainingEffects: EffectFormValues[] = [];
+
+  for (const effect of mergedValues.effects) {
+    const attribute = effect.affectedAttribute as PrimaryAttribute;
+    const isPrimaryAttribute = EFFECT_ATTRIBUTES.includes(attribute);
+
+    if (
+      isPrimaryAttribute &&
+      effect.valueType === "NUMERIC" &&
+      !primaryAttributes[attribute]
+    ) {
+      primaryAttributes[attribute] = createPrimaryAttributeDefaults(attribute, {
+        targetScope: effect.targetScope,
+        effectKind: effect.effectKind,
+        operation: effect.operation,
+        valueNumeric: effect.valueNumeric,
+      });
+      continue;
+    }
+
+    remainingEffects.push(effect);
+  }
+
+  return {
+    ...mergedValues,
+    primaryAttributes,
+    effects: remainingEffects,
+  };
+}
+
+function buildPrimaryAttributeEffects(
+  primaryAttributes: Partial<Record<PrimaryAttribute, PrimaryAttributeFormValues>>,
+) {
+  return EFFECT_ATTRIBUTES.flatMap((attribute) => {
+    const value = primaryAttributes[attribute];
+
+    if (!hasPrimaryAttributeValue(value)) {
+      return [];
+    }
+
+    return [
+      buildEffectPayload({
+        targetScope: value.targetScope,
+        affectedAttribute: attribute,
+        effectKind: value.effectKind,
+        operation: value.operation,
+        valueType: "NUMERIC",
+        valueNumeric: value.valueNumeric,
+        valueText: "",
+        valueToken: "",
+      }),
+    ];
+  });
+}
+
 export function TechniqueForm({
+  variant,
   mode,
   rankOptions,
   techniqueTypeOptions,
@@ -191,12 +385,44 @@ export function TechniqueForm({
 }: TechniqueFormProps) {
   const router = useRouter();
   const [values, setValues] = useState<TechniqueFormValues>({
-    ...defaultTechniqueValues,
-    ...initialValues,
+    ...normalizeTechniqueFormValues(initialValues),
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const copy = VARIANT_COPY[variant];
+  const filteredTechniqueTypeOptions = techniqueTypeOptions.filter((item) =>
+    variant === "SUMMONING" ? item.code === "SUMMONING" : item.code !== "SUMMONING",
+  );
+
+  const setPrimaryAttributeValue = <K extends keyof PrimaryAttributeFormValues>(
+    attribute: PrimaryAttribute,
+    key: K,
+    value: PrimaryAttributeFormValues[K],
+  ) => {
+    setValues((current) => ({
+      ...current,
+      primaryAttributes: {
+        ...current.primaryAttributes,
+        [attribute]: createPrimaryAttributeDefaults(attribute, {
+          ...current.primaryAttributes[attribute],
+          [key]: value,
+        }),
+      },
+    }));
+  };
+
+  const clearPrimaryAttribute = (attribute: PrimaryAttribute) => {
+    setValues((current) => ({
+      ...current,
+      primaryAttributes: {
+        ...current.primaryAttributes,
+        [attribute]: createPrimaryAttributeDefaults(attribute, {
+          valueNumeric: "",
+        }),
+      },
+    }));
+  };
 
   const setValue = <K extends keyof TechniqueFormValues>(
     key: K,
@@ -241,7 +467,14 @@ export function TechniqueForm({
   const addPrice = () => {
     setValues((current) => ({
       ...current,
-      prices: [...current.prices, { priceContext: "TECHNIQUE_PURCHASE", amount: "", notes: "" }],
+      prices: [
+        ...current.prices,
+        {
+          priceContext: variant === "SUMMONING" ? "SUMMON_UNIT_PURCHASE" : "TECHNIQUE_PURCHASE",
+          amount: "",
+          notes: "",
+        },
+      ],
     }));
   };
 
@@ -331,11 +564,14 @@ export function TechniqueForm({
           ? "/api/techniques"
           : `/api/techniques/${techniqueId}`;
 
-      const selectedType = techniqueTypeOptions.find((item) => item.id === values.techniqueTypeId);
-      const resolvedKind = selectedType?.code === "SUMMONING" ? "SUMMONING" : "JUTSU";
+      const requiredPriceContext = variant === "SUMMONING" ? "SUMMON_UNIT_PURCHASE" : "TECHNIQUE_PURCHASE";
+
+      if (!values.prices.some((item) => item.priceContext === requiredPriceContext && item.amount.trim())) {
+        throw new Error("Preço de Compra é obrigatório para este cadastro.");
+      }
 
       const payload: Record<string, unknown> = {
-        kind: resolvedKind,
+        kind: variant,
         techniqueTypeId: values.techniqueTypeId,
         name: values.name.trim(),
         rankId: values.rankId,
@@ -369,7 +605,10 @@ export function TechniqueForm({
           : null,
         targetIds: values.targetIds,
         escapeIds: values.escapeIds,
-        effects: values.effects.map((item) => buildEffectPayload(item)),
+        effects: [
+          ...buildPrimaryAttributeEffects(values.primaryAttributes),
+          ...values.effects.map((item) => buildEffectPayload(item)),
+        ],
       };
 
       const response = await fetch(endpoint, {
@@ -392,17 +631,7 @@ export function TechniqueForm({
         );
       }
 
-      if (mode === "create") {
-        const nextTechniqueId = responseBody.data.technique?.id;
-
-        if (nextTechniqueId) {
-          router.replace(`/dashboard/techniques/${nextTechniqueId}/edit`);
-          router.refresh();
-          return;
-        }
-      }
-
-      setSuccess("Técnica salva com sucesso.");
+      router.replace("/dashboard/techniques");
       router.refresh();
     } catch (submitError) {
       setError(
@@ -420,8 +649,7 @@ export function TechniqueForm({
       <Card>
         <CardContent className="pt-6 space-y-6">
           <p className="text-sm text-muted-foreground">
-            Preencha os dados básicos da técnica para identificar o tipo, rank e origem da referência.
-            O campo de observações é ideal para regras resumidas e notas importantes para leitura rápida.
+            {copy.basicsDescription}
           </p>
           <div className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
@@ -436,7 +664,7 @@ export function TechniqueForm({
                 className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               >
                 <option value="">Selecione um tipo</option>
-                {techniqueTypeOptions.map((item) => (
+                {filteredTechniqueTypeOptions.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.name} ({item.code})
                   </option>
@@ -789,12 +1017,124 @@ export function TechniqueForm({
 
       <Card>
         <CardContent className="pt-6 space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold">{copy.primaryAttributesTitle}</h2>
+            <p className="text-sm text-muted-foreground">
+              {copy.primaryAttributesDescription}
+            </p>
+          </div>
+
+          <div className="space-y-4">
+            {EFFECT_ATTRIBUTES.map((attribute) => {
+              const attributeValues = createPrimaryAttributeDefaults(
+                attribute,
+                values.primaryAttributes[attribute],
+              );
+
+              return (
+                <div key={attribute} className="rounded-lg border p-4 space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <h3 className="font-medium">{PRIMARY_ATTRIBUTE_CONFIG[attribute].label}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Deixe em branco quando este atributo não fizer parte da regra principal da {copy.entityLabel}.
+                      </p>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={() => clearPrimaryAttribute(attribute)}>
+                      Limpar
+                    </Button>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <div className="space-y-2">
+                      <Label>Valor</Label>
+                      <Input
+                        type="number"
+                        value={attributeValues.valueNumeric}
+                        onChange={(event) =>
+                          setPrimaryAttributeValue(attribute, "valueNumeric", event.target.value)
+                        }
+                        placeholder="Ex.: 20000"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Escopo</Label>
+                      <select
+                        value={attributeValues.targetScope}
+                        onChange={(event) =>
+                          setPrimaryAttributeValue(
+                            attribute,
+                            "targetScope",
+                            event.target.value as PrimaryAttributeFormValues["targetScope"],
+                          )
+                        }
+                        className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        {TARGET_SCOPES.map((scope) => (
+                          <option key={scope} value={scope}>
+                            {TARGET_SCOPE_LABEL[scope]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Categoria</Label>
+                      <select
+                        value={attributeValues.effectKind}
+                        onChange={(event) =>
+                          setPrimaryAttributeValue(
+                            attribute,
+                            "effectKind",
+                            event.target.value as PrimaryAttributeFormValues["effectKind"],
+                          )
+                        }
+                        className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        {EFFECT_KINDS.map((kind) => (
+                          <option key={kind} value={kind}>
+                            {EFFECT_KIND_LABEL[kind]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Operação</Label>
+                      <select
+                        value={attributeValues.operation}
+                        onChange={(event) =>
+                          setPrimaryAttributeValue(
+                            attribute,
+                            "operation",
+                            event.target.value as PrimaryAttributeFormValues["operation"],
+                          )
+                        }
+                        className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        {EFFECT_OPERATIONS.map((operation) => (
+                          <option key={operation} value={operation}>
+                            {EFFECT_OPERATION_LABEL[operation]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-6 space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-semibold">Efeitos</h2>
+              <h2 className="text-lg font-semibold">{copy.extraEffectsTitle}</h2>
               <p className="text-sm text-muted-foreground">
-                Cadastre os efeitos que a técnica aplica no alvo. Para cada efeito, escolha escopo,
-                atributo afetado, operação e tipo de valor para refletir corretamente a regra de batalha.
+                {copy.extraEffectsDescription}
               </p>
             </div>
             <Button type="button" variant="outline" onClick={addEffect}>
@@ -949,7 +1289,7 @@ export function TechniqueForm({
           {isLoading
             ? "Salvando..."
             : mode === "create"
-              ? "Criar técnica"
+              ? copy.submitCreateLabel
               : "Salvar alterações"}
         </Button>
         <Button

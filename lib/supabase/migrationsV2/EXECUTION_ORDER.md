@@ -15,7 +15,7 @@ Ou siga a ordem abaixo arquivo por arquivo.
 ## 📋 Ordem de Execução - Arquivo por Arquivo
 
 ### PHASE 1: SCHEMA (Estrutura de dados)
-Cria 19 tabelas + 1 índice única
+Cria 19 tabelas + 1 ajuste incremental de custo + 1 índice única
 
 | # | Arquivo | Descrição | Tabelas |
 |---|---------|-----------|---------|
@@ -23,6 +23,7 @@ Cria 19 tabelas + 1 índice única
 | 2 | `01-schema/02-players-structure.sql` | Player system | characters, players |
 | 3 | `01-schema/03-techniques-structure.sql` | Technique system completo | techniques, jutsus, summonings, technique_costs, technique_limits, technique_effects, technique_effect_values, targets, technique_targets, escapes, technique_escapes, technique_prices |
 | 4 | `01-schema/04-audit-structure.sql` | Audit trail | technique_updates |
+| 5 | `01-schema/05-technique-costs-ag.sql` | Expande custo de uso para AG | technique_costs |
 
 **⏱️ Tempo estimado**: 5 segundos
 
@@ -33,9 +34,9 @@ Cria 6 functions + 1 trigger function
 
 | # | Arquivo | Funções Criadas | Dependências |
 |---|---------|-----------------|--------------|
-| 5 | `02-functions/01-utility-functions.sql` | `set_updated_at()` | Nenhuma |
-| 6 | `02-functions/02-auth-functions.sql` | `is_kage()`, `can_update_players()`, `handle_new_auth_user()` | Tabelas de schema |
-| 7 | `02-functions/03-technique-functions.sql` | `log_technique_lifecycle()` | `technique_updates` table |
+| 6 | `02-functions/01-utility-functions.sql` | `set_updated_at()` | Nenhuma |
+| 7 | `02-functions/02-auth-functions.sql` | `is_kage()`, `can_update_players()`, `handle_new_auth_user()` | Tabelas de schema |
+| 8 | `02-functions/03-technique-functions.sql` | `log_technique_lifecycle()` | `technique_updates` table |
 
 **⏱️ Tempo estimado**: 2 segundos
 
@@ -46,8 +47,8 @@ Cria 8 triggers
 
 | # | Arquivo | Triggers Criados | On Tables |
 |---|---------|------------------|-----------|
-| 8 | `03-triggers/01-timestamp-triggers.sql` | 7x `set_updated_at` triggers | roles, villages, ranks, technique_types, characters, players, techniques |
-| 9 | `03-triggers/02-audit-triggers.sql` | `log_technique_lifecycle`, `on_auth_user_created` | techniques, auth.users |
+| 9 | `03-triggers/01-timestamp-triggers.sql` | 7x `set_updated_at` triggers | roles, villages, ranks, technique_types, characters, players, techniques |
+| 10 | `03-triggers/02-audit-triggers.sql` | `log_technique_lifecycle`, `on_auth_user_created` | techniques, auth.users |
 
 **⏱️ Tempo estimado**: 1 segundo  
 **Dependência**: Phase 2 (Functions) MUST be done first
@@ -59,10 +60,10 @@ Ativa RLS + Define 45+ políticas
 
 | # | Arquivo | O que faz | Tabelas Afetadas |
 |---|---------|-----------|------------------|
-| 10 | `04-rls/01-rls-enable.sql` | Enable RLS | 19 tabelas (todas) |
-| 11 | `04-rls/02-public-tables-policies.sql` | Políticas de leitura pública | roles, villages, ranks, technique_types, characters, targets, escapes |
-| 12 | `04-rls/03-players-policies.sql` | Políticas de player | players |
-| 13 | `04-rls/04-techniques-policies.sql` | Políticas KAGE-only | techniques, jutsus, summonings, costs, limits, effects, etc |
+| 11 | `04-rls/01-rls-enable.sql` | Enable RLS | 19 tabelas (todas) |
+| 12 | `04-rls/02-public-tables-policies.sql` | Políticas de leitura pública | roles, villages, ranks, technique_types, characters, targets, escapes |
+| 13 | `04-rls/03-players-policies.sql` | Políticas de player | players |
+| 14 | `04-rls/04-techniques-policies.sql` | Políticas KAGE-only | techniques, jutsus, summonings, costs, limits, effects, etc |
 
 **⏱️ Tempo estimado**: 3 segundos
 
@@ -73,8 +74,8 @@ Define grants por role
 
 | # | Arquivo | Grants Para | O que recebe |
 |---|---------|-------------|-------------|
-| 14 | `05-grants/01-anon-grants.sql` | anon role | SELECT em 4 tabelas públicas |
-| 15 | `05-grants/02-authenticated-grants.sql` | authenticated role | SELECT/UPDATE/INSERT/DELETE conforme RLS |
+| 15 | `05-grants/01-anon-grants.sql` | anon role | SELECT em 4 tabelas públicas |
+| 16 | `05-grants/02-authenticated-grants.sql` | authenticated role | SELECT/UPDATE/INSERT/DELETE conforme RLS |
 
 **⏱️ Tempo estimado**: 1 segundo
 
@@ -85,7 +86,7 @@ Cria 23 índices
 
 | # | Arquivo | Índices | Cobertura |
 |---|---------|---------|-----------|
-| 16 | `06-indexes/01-all-indexes.sql` | 23 índices | players, techniques, relationships |
+| 17 | `06-indexes/01-all-indexes.sql` | 23 índices | players, techniques, relationships |
 
 **⏱️ Tempo estimado**: 2 segundos
 
@@ -96,11 +97,11 @@ Insere 30+ registros de dados base
 
 | # | Arquivo | Inserts | Quantidade |
 |---|---------|---------|-----------|
-| 17 | `07-seeds/01-roles.sql` | Roles: MEMBER, KAGE | 2 |
-| 18 | `07-seeds/02-ranks.sql` | Ranks: C, B, A, S, SS, SSS | 6 |
-| 19 | `07-seeds/03-technique-types.sql` | Technique Types: NINJUTSU, TAIJUTSU, ... | 5 |
-| 20 | `07-seeds/04-villages.sql` | Villages | 0 (comentado) |
-| 21 | `07-seeds/05-targets-escapes.sql` | Targets (6) + Escapes (5) | 11 |
+| 18 | `07-seeds/01-roles.sql` | Roles: MEMBER, KAGE | 2 |
+| 19 | `07-seeds/02-ranks.sql` | Ranks: C, B, A, S, SS, SSS | 6 |
+| 20 | `07-seeds/03-technique-types.sql` | Technique Types: NINJUTSU, TAIJUTSU, ... | 5 |
+| 21 | `07-seeds/04-villages.sql` | Villages | 0 (comentado) |
+| 22 | `07-seeds/05-targets-escapes.sql` | Targets (6) + Escapes (5) | 11 |
 
 **⏱️ Tempo estimado**: 1 segundo  
 **Total após seeds**: 30 registros base

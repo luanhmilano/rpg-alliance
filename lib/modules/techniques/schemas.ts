@@ -127,7 +127,7 @@ export const techniqueEffectInputSchema = z.object({
   value: techniqueEffectValueInputSchema.optional(),
 });
 
-export const createTechniqueSchema = z.object({
+const createTechniqueBaseSchema = z.object({
   kind: z.enum(TECHNIQUE_KINDS),
   techniqueTypeId: uuidSchema,
   name: z.string().trim().min(2).max(140),
@@ -142,9 +142,32 @@ export const createTechniqueSchema = z.object({
   escapeIds: z.array(uuidSchema).default([]),
 });
 
+export const createTechniqueSchema = createTechniqueBaseSchema
+  .superRefine((value, ctx) => {
+    const requiredPriceContext =
+      value.kind === "SUMMONING"
+        ? "SUMMON_UNIT_PURCHASE"
+        : "TECHNIQUE_PURCHASE";
+
+    const hasRequiredPurchasePrice = value.prices.some(
+      (price) => price.priceContext === requiredPriceContext,
+    );
+
+    if (!hasRequiredPurchasePrice) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["prices"],
+        message:
+          value.kind === "SUMMONING"
+            ? "Summonings require a purchase price"
+            : "Jutsus require a purchase price",
+      });
+    }
+  });
+
 export const updateTechniqueSchema = createTechniqueSchema;
 
-export const patchTechniqueSchema = createTechniqueSchema
+export const patchTechniqueSchema = createTechniqueBaseSchema
   .partial()
   .extend({
     effects: z.array(techniqueEffectInputSchema).optional(),

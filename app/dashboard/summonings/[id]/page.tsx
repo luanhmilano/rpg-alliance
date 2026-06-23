@@ -15,14 +15,14 @@ const COST_RESOURCE_LABEL: Record<string, string> = {
 };
 
 const COST_FREQUENCY_LABEL: Record<string, string> = {
-  ONE_TIME: "Uso unico",
-  ACTIVATION: "Ativacao",
+  ONE_TIME: "Uso único",
+  ACTIVATION: "Ativação",
   PER_TURN: "Por turno",
 };
 
 const PRICE_CONTEXT_LABEL: Record<string, string> = {
-  TECHNIQUE_PURCHASE: "Compra da tecnica",
-  SUMMON_UNIT_PURCHASE: "Compra de invocacao",
+  TECHNIQUE_PURCHASE: "Preço de compra",
+  SUMMON_UNIT_PURCHASE: "Preço de compra",
   OTHER: "Outro",
 };
 
@@ -34,7 +34,7 @@ const EFFECT_KIND_LABEL: Record<string, string> = {
 };
 
 const EFFECT_OPERATION_LABEL: Record<string, string> = {
-  SET: "Definido",
+  SET: "Definir",
   ADD: "Somar",
   SUB: "Subtrair",
   MULTIPLY: "Multiplicar",
@@ -53,7 +53,7 @@ function formatEffectValue(
   }
 
   if (value.valueType === "NUMERIC") {
-    return value.valueNumeric != null ? String(value.valueNumeric) : "Sem valor numerico";
+    return value.valueNumeric != null ? String(value.valueNumeric) : "Sem valor numérico";
   }
 
   if (value.valueType === "TEXT") {
@@ -63,40 +63,40 @@ function formatEffectValue(
   return value.valueToken ?? "Sem token";
 }
 
-type JutsuPageProps = {
+type SummoningPageProps = {
   params: Promise<{ id: string }>;
 };
 
-export default async function JutsuDetailsPage({ params }: JutsuPageProps) {
+export default async function SummoningDetailsPage({ params }: SummoningPageProps) {
   return (
-    <Suspense fallback={<div className="text-sm text-muted-foreground">Carregando detalhes do jutsu...</div>}>
-      <JutsuDetailsContent params={params} />
+    <Suspense fallback={<div className="text-sm text-muted-foreground">Carregando detalhes da invocação...</div>}>
+      <SummoningDetailsContent params={params} />
     </Suspense>
   );
 }
 
-async function JutsuDetailsContent({ params }: JutsuPageProps) {
+async function SummoningDetailsContent({ params }: SummoningPageProps) {
   const profile = await requireApprovedProfile();
   const { id } = await params;
   const service = await buildTechniquesService();
-  const jutsu = await service.getById(id);
+  const summoning = await service.getById(id);
 
-  if (!jutsu || jutsu.kind !== "JUTSU") {
+  if (!summoning || summoning.kind !== "SUMMONING") {
     notFound();
   }
 
-  const createdLabel = new Date(jutsu.createdAt).toLocaleString("pt-BR");
-  const updatedLabel = new Date(jutsu.updatedAt).toLocaleString("pt-BR");
+  const createdLabel = new Date(summoning.createdAt).toLocaleString("pt-BR");
+  const updatedLabel = new Date(summoning.updatedAt).toLocaleString("pt-BR");
 
   return (
     <div className="flex-1 w-full flex flex-col gap-6">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="space-y-1">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Ficha do jutsu</p>
-          <h1 className="text-3xl md:text-4xl font-bold">{jutsu.name}</h1>
+          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">Ficha da invocação</p>
+          <h1 className="text-3xl md:text-4xl font-bold">{summoning.name}</h1>
         </div>
         <Button asChild variant="outline">
-          <Link href="/dashboard">Voltar para o catalogo</Link>
+          <Link href="/dashboard">Voltar para o catálogo</Link>
         </Button>
       </div>
 
@@ -104,18 +104,18 @@ async function JutsuDetailsContent({ params }: JutsuPageProps) {
         <Card className="lg:col-span-2 border-primary/20">
           <CardHeader className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="default">{jutsu.kind}</Badge>
-              <Badge variant="secondary">{jutsu.techniqueTypeName ?? jutsu.techniqueTypeCode}</Badge>
-              <Badge variant="outline">Rank {jutsu.rankValue ?? "N/D"}</Badge>
+              <Badge variant="default">{summoning.kind}</Badge>
+              <Badge variant="secondary">{summoning.techniqueTypeName ?? summoning.techniqueTypeCode}</Badge>
+              <Badge variant="outline">Rank {summoning.rankValue ?? "N/D"}</Badge>
             </div>
-            <CardTitle className="text-xl">Especificacao</CardTitle>
+            <CardTitle className="text-xl">Especificação</CardTitle>
           </CardHeader>
           <CardContent className="space-y-5 text-sm">
             <section className="space-y-2">
-              <h2 className="font-semibold">Custos</h2>
-              {jutsu.costs.length ? (
+              <h2 className="font-semibold">Custos de uso</h2>
+              {summoning.costs.length ? (
                 <div className="space-y-2">
-                  {jutsu.costs.map((cost, index) => (
+                  {summoning.costs.map((cost, index) => (
                     <div key={`${cost.resource}-${cost.frequency}-${index}`} className="rounded-md border p-3">
                       <p className="text-muted-foreground">
                         <span className="font-medium text-foreground">Recurso:</span>{" "}
@@ -125,7 +125,7 @@ async function JutsuDetailsContent({ params }: JutsuPageProps) {
                         <span className="font-medium text-foreground">Quantidade:</span> {cost.amount}
                       </p>
                       <p className="text-muted-foreground">
-                        <span className="font-medium text-foreground">Frequencia:</span>{" "}
+                        <span className="font-medium text-foreground">Frequência:</span>{" "}
                         {COST_FREQUENCY_LABEL[cost.frequency] ?? cost.frequency}
                       </p>
                     </div>
@@ -137,10 +137,10 @@ async function JutsuDetailsContent({ params }: JutsuPageProps) {
             </section>
 
             <section className="space-y-2">
-              <h2 className="font-semibold">Precos</h2>
-              {jutsu.prices.length ? (
+              <h2 className="font-semibold">Preços</h2>
+              {summoning.prices.length ? (
                 <div className="space-y-2">
-                  {jutsu.prices.map((price, index) => (
+                  {summoning.prices.map((price, index) => (
                     <div key={`${price.priceContext}-${price.amount}-${index}`} className="rounded-md border p-3">
                       <p className="text-muted-foreground">
                         <span className="font-medium text-foreground">Contexto:</span>{" "}
@@ -157,31 +157,31 @@ async function JutsuDetailsContent({ params }: JutsuPageProps) {
                   ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground">Nenhum preco cadastrado.</p>
+                <p className="text-muted-foreground">Nenhum preço cadastrado.</p>
               )}
             </section>
 
             <section className="space-y-2">
               <h2 className="font-semibold">Limites</h2>
-              {jutsu.limits ? (
+              {summoning.limits ? (
                 <div className="rounded-md border p-3 space-y-1">
                   <p className="text-muted-foreground">
                     <span className="font-medium text-foreground">Limite por turno:</span>{" "}
-                    {jutsu.limits.hasTurnLimit
-                      ? `Sim (${jutsu.limits.maxActiveTurns ?? "N/D"})`
-                      : "Nao"}
+                    {summoning.limits.hasTurnLimit
+                      ? `Sim (${summoning.limits.maxActiveTurns ?? "N/D"})`
+                      : "Não"}
                   </p>
                   <p className="text-muted-foreground">
                     <span className="font-medium text-foreground">Limite por luta:</span>{" "}
-                    {jutsu.limits.hasFightUseLimit
-                      ? `Sim (${jutsu.limits.maxUsesPerFight ?? "N/D"})`
-                      : "Nao"}
+                    {summoning.limits.hasFightUseLimit
+                      ? `Sim (${summoning.limits.maxUsesPerFight ?? "N/D"})`
+                      : "Não"}
                   </p>
                   <p className="text-muted-foreground">
                     <span className="font-medium text-foreground">Limite por card:</span>{" "}
-                    {jutsu.limits.hasCardUseLimit
-                      ? `Sim (${jutsu.limits.maxUsesPerCard ?? "N/D"})`
-                      : "Nao"}
+                    {summoning.limits.hasCardUseLimit
+                      ? `Sim (${summoning.limits.maxUsesPerCard ?? "N/D"})`
+                      : "Não"}
                   </p>
                 </div>
               ) : (
@@ -190,25 +190,25 @@ async function JutsuDetailsContent({ params }: JutsuPageProps) {
             </section>
 
             <section className="space-y-2">
-              <h2 className="font-semibold">Efeitos</h2>
-              {jutsu.effects.length ? (
+              <h2 className="font-semibold">Atributos e efeitos</h2>
+              {summoning.effects.length ? (
                 <div className="space-y-1">
-                  {jutsu.effects.map((effect) => (
+                  {summoning.effects.map((effect) => (
                     <p key={effect.id} className="text-sm text-muted-foreground font-mono">
                       {effect.affectedAttribute} | {formatEffectValue(effect.value)} | {EFFECT_KIND_LABEL[effect.effectKind] ?? effect.effectKind} | {EFFECT_OPERATION_LABEL[effect.operation] ?? effect.operation}
                     </p>
                   ))}
                 </div>
               ) : (
-                <p className="text-muted-foreground">Nenhum efeito cadastrado.</p>
+                <p className="text-muted-foreground">Nenhum atributo ou efeito cadastrado.</p>
               )}
             </section>
 
             <section className="space-y-2">
               <h2 className="font-semibold">Alvos</h2>
-              {jutsu.targets.length ? (
+              {summoning.targets.length ? (
                 <div className="flex flex-wrap gap-2">
-                  {jutsu.targets.map((target) => (
+                  {summoning.targets.map((target) => (
                     <Badge key={target.id} variant="outline">
                       {target.description} ({target.code})
                     </Badge>
@@ -221,9 +221,9 @@ async function JutsuDetailsContent({ params }: JutsuPageProps) {
 
             <section className="space-y-2">
               <h2 className="font-semibold">Escapes</h2>
-              {jutsu.escapes.length ? (
+              {summoning.escapes.length ? (
                 <div className="flex flex-wrap gap-2">
-                  {jutsu.escapes.map((escape) => (
+                  {summoning.escapes.map((escape) => (
                     <Badge key={escape.id} variant="outline">
                       {escape.description} ({escape.code})
                     </Badge>
@@ -235,23 +235,15 @@ async function JutsuDetailsContent({ params }: JutsuPageProps) {
             </section>
 
             <section className="space-y-1">
-              <h2 className="font-semibold">Observacoes</h2>
+              <h2 className="font-semibold">Observações</h2>
               <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
-                {jutsu.observations ?? "Nenhuma observacao cadastrada."}
+                {summoning.observations ?? "Nenhuma observação cadastrada."}
               </p>
-            </section>
-
-            <section className="space-y-2">
-              <h2 className="font-semibold">Referencias</h2>
-              <p className="text-muted-foreground">Tipo: {jutsu.techniqueTypeName ?? jutsu.techniqueTypeCode}</p>
-              <p className="text-muted-foreground">Rank: {jutsu.rankValue ?? "N/D"}</p>
             </section>
 
             <section className="space-y-2">
               <h2 className="font-semibold">Auditoria</h2>
-              <p className="text-muted-foreground whitespace-pre-line">
-                Criado em: {createdLabel}
-              </p>
+              <p className="text-muted-foreground whitespace-pre-line">Criado em: {createdLabel}</p>
               <p className="text-muted-foreground whitespace-pre-line">Atualizado em: {updatedLabel}</p>
               <p className="text-muted-foreground break-all">Atualizado por: Sistema</p>
             </section>
@@ -260,23 +252,23 @@ async function JutsuDetailsContent({ params }: JutsuPageProps) {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Links e Acoes</CardTitle>
+            <CardTitle className="text-lg">Links e ações</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 text-sm">
-            {jutsu.link ? (
+            {summoning.link ? (
               <Button asChild className="w-full">
-                <Link href={jutsu.link} target="_blank" rel="noreferrer">
-                  Abrir referencia
+                <Link href={summoning.link} target="_blank" rel="noreferrer">
+                  Abrir referência
                 </Link>
               </Button>
             ) : (
               <Button className="w-full" disabled>
-                Abrir referencia
+                Abrir referência
               </Button>
             )}
             {profile.role === "KAGE" && (
               <Button asChild variant="outline" className="w-full">
-                <Link href={`/dashboard/techniques/${jutsu.id}/edit`}>Editar</Link>
+                <Link href={`/dashboard/techniques/${summoning.id}/edit`}>Editar</Link>
               </Button>
             )}
           </CardContent>

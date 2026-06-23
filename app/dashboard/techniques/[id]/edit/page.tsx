@@ -11,7 +11,8 @@ import {
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireKageProfile } from "@/lib/access-control";
-import { TechniqueForm } from "@/components/techniques/technique-form";
+import { JutsuForm } from "@/components/techniques/jutsu-form";
+import { SummoningForm } from "@/components/techniques/summoning-form";
 import { catalogsRepository } from "@/server/repositories/catalogs.repository";
 import { buildTechniquesService } from "@/server/services/techniques.service";
 
@@ -76,6 +77,8 @@ async function EditTechniqueContent({ params }: TechniquePageProps) {
   }
 
   const technique = techniqueAggregate;
+  const FormComponent = technique.kind === "SUMMONING" ? SummoningForm : JutsuForm;
+  const title = technique.kind === "SUMMONING" ? "Editar invocação" : "Editar jutsu";
 
   const initialEffects = techniqueAggregate.effects.map((effect) => {
     if (effect.value?.valueType === "TEXT") {
@@ -122,10 +125,9 @@ async function EditTechniqueContent({ params }: TechniquePageProps) {
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
           KAGE Techniques
         </p>
-        <h1 className="text-3xl font-bold">Editar técnica</h1>
+        <h1 className="text-3xl font-bold">{title}</h1>
         <p className="text-sm text-muted-foreground">
-          Ajuste dados principais e blocos opcionais sem perder compatibilidade
-          com técnicas legadas.
+          Ajuste dados principais e blocos opcionais com um formulário específico para o tipo desta técnica.
         </p>
       </div>
 
@@ -134,7 +136,7 @@ async function EditTechniqueContent({ params }: TechniquePageProps) {
           <CardTitle>{technique.name}</CardTitle>
         </CardHeader>
         <CardContent>
-          <TechniqueForm
+          <FormComponent
             mode="edit"
             techniqueId={technique.id}
             rankOptions={ranks}
