@@ -25,8 +25,8 @@ async function RootContent() {
   return (
     <section className="relative isolate w-full overflow-hidden">
       <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,hsla(var(--highlight),0.22),transparent_28%),linear-gradient(140deg,hsla(var(--primary),0.15),transparent_45%),linear-gradient(180deg,transparent,hsla(var(--accent),0.09))]" />
-      <div className="absolute left-0 top-28 -z-10 h-64 w-64 rounded-full bg-primary/20 blur-3xl" />
-      <div className="absolute right-0 top-12 -z-10 h-72 w-72 rounded-full bg-accent/20 blur-3xl" />
+      <div className="absolute left-0 top-28 -z-10 hidden h-64 w-64 rounded-full bg-primary/20 blur-3xl md:block" />
+      <div className="absolute right-0 top-12 -z-10 hidden h-72 w-72 rounded-full bg-accent/20 blur-3xl md:block" />
 
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-12 px-4 py-10 md:px-6 md:py-16 lg:px-8 lg:py-20">
         <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
@@ -36,7 +36,7 @@ async function RootContent() {
             </div>
 
             <div className="space-y-5">
-              <h1 className="max-w-3xl text-5xl font-black uppercase leading-[0.92] tracking-[-0.05em] text-foreground md:text-6xl lg:text-7xl">
+              <h1 className="max-w-3xl text-2xl font-black uppercase leading-[0.92] tracking-[-0.05em] text-foreground sm:text-4xl md:text-5xl lg:text-7xl">
                 Escolha seu personagem
                 <span className="block text-primary">Vire uma lenda</span>
               </h1>
@@ -63,28 +63,28 @@ async function RootContent() {
               </Button>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl border border-border bg-card/80 p-4 backdrop-blur">
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+              <div className="rounded-xl border border-border bg-card/80 p-3 md:p-4 backdrop-blur">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
                   Gameplay
                 </p>
-                <p className="mt-2 text-lg font-semibold">
+                <p className="mt-2 text-base md:text-lg font-semibold">
                   Ganhe Ryo fazendo missões.
                 </p>
               </div>
-              <div className="rounded-xl border border-border bg-card/80 p-4 backdrop-blur">
+              <div className="rounded-xl border border-border bg-card/80 p-3 md:p-4 backdrop-blur">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
                   Jutsus
                 </p>
-                <p className="mt-2 text-lg font-semibold">
+                <p className="mt-2 text-base md:text-lg font-semibold">
                   Compre jutsus e técnicas do seu personagem.
                 </p>
               </div>
-              <div className="rounded-xl border border-border bg-card/80 p-4 backdrop-blur">
+              <div className="rounded-xl border border-border bg-card/80 p-3 md:p-4 backdrop-blur">
                 <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">
                   Aliança
                 </p>
-                <p className="mt-2 text-lg font-semibold">
+                <p className="mt-2 text-base md:text-lg font-semibold">
                   Conheça novas pessoas.
                 </p>
               </div>

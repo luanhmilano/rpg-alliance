@@ -8,8 +8,8 @@ async function DashboardNav() {
   const profile = await requireApprovedProfile();
 
   return (
-    <div className="w-full max-w-5xl flex justify-between items-center p-3 px-5 text-sm">
-      <div className="flex gap-5 items-center font-semibold">
+    <div className="w-full max-w-5xl flex justify-between items-center p-2 px-4 md:p-3 md:px-5 text-xs md:text-sm overflow-x-auto">
+      <div className="flex gap-2 md:gap-5 items-center font-semibold whitespace-nowrap">
         <Link href="/dashboard">Alliance</Link>
         <Link href="/dashboard/updates">Updates</Link>
         {profile.role === "KAGE" && (
@@ -42,7 +42,7 @@ export default function DashboardLayout({
             <DashboardNav />
           </Suspense>
         </nav>
-        <div className="flex-1 flex flex-col gap-20 max-w-5xl p-5 w-full">
+        <div className="flex-1 flex flex-col gap-8 md:gap-12 lg:gap-20 max-w-5xl p-4 md:p-5 w-full">
           {children}
         </div>
       </div>
