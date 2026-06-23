@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
-import type { DbRow } from "@/lib/db";
 import { createClient } from "@/lib/supabase/server";
+import { playersRepository } from "@/server/repositories/players.repository";
 import type { ActorContext } from "@/lib/types/common";
 import { ApiError } from "@/lib/types/errors";
 
@@ -34,44 +34,18 @@ export async function getCurrentProfile() {
     return null;
   }
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("players")
-    .select("*")
-    .eq("id", user.id)
-    .single();
-
-  if (error) {
-    // User not found in players table - not fully registered yet
-    if (error.code === "PGRST116") {
-      return null;
-    }
-
+  const player = await playersRepository.getByIdWithRelations(user.id);
+  if (!player) {
     return null;
   }
 
-  if (!data) {
-    return null;
-  }
-
-  const player = data as DbRow<"players">;
-
-  // Get role name from role_id
-  const { data: roleData } = await supabase
-    .from("roles")
-    .select("*")
-    .eq("id", player.role_id)
-    .single();
-
-  const role = roleData as DbRow<"roles"> | null;
-  const roleName = (role?.name as AppRole) ?? "MEMBER";
   const approvalStatus = player.approved ? "APPROVED" : "PENDING";
 
   return {
     id: player.id,
     email: player.email ?? null,
     phone: player.phone ?? null,
-    role: roleName,
+    role: player.role,
     approval_status: approvalStatus,
   } as AppProfile;
 }

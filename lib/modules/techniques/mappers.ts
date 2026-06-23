@@ -9,13 +9,25 @@ import type {
   TechniquePriceModel,
 } from "@/lib/modules/techniques/types";
 
-export function mapTechniqueRowToModel(row: DbRow<"techniques">): TechniqueModel {
+type TechniqueLookupFields = {
+  techniqueTypeCode?: string;
+  techniqueTypeName?: string | null;
+  rankValue?: string | null;
+};
+
+export function mapTechniqueRowToModel(
+  row: DbRow<"techniques">,
+  lookup?: TechniqueLookupFields,
+): TechniqueModel {
   return {
     id: row.id,
     kind: row.kind,
     techniqueTypeId: row.technique_type_id,
+    techniqueTypeCode: lookup?.techniqueTypeCode,
+    techniqueTypeName: lookup?.techniqueTypeName ?? null,
     name: row.name,
     rankId: row.rank_id,
+    rankValue: lookup?.rankValue ?? null,
     link: row.link,
     observations: row.observations,
     updatedBy: row.updated_by,

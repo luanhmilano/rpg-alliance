@@ -1,20 +1,15 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import Link from "next/link";
 import { Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireKageProfile } from "@/lib/access-control";
-import { createClient } from "@/lib/supabase/server";
+import { buildTechniquesService } from "@/server/services/techniques.service";
 
 async function TechniquesAdminContent() {
   await requireKageProfile();
-  const supabase = await createClient();
-
-  const { data: techniques } = await supabase
-    .from("techniques")
-    .select("id,kind,name,rank_id,link,observations,updated_at,ranks(value)")
-    .order("updated_at", { ascending: false });
+  const service = await buildTechniquesService();
+  const techniques = await service.list({});
 
   return (
     <div className="flex-1 w-full flex flex-col gap-8">
@@ -40,7 +35,7 @@ async function TechniquesAdminContent() {
         </CardHeader>
         <CardContent className="space-y-3">
           {techniques && techniques.length > 0 ? (
-            techniques.map((technique: any) => (
+            techniques.map((technique) => (
               <div
                 key={technique.id}
                 className="flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between"
@@ -49,7 +44,7 @@ async function TechniquesAdminContent() {
                   <p className="font-semibold">{technique.name}</p>
                   <p className="text-sm text-muted-foreground">
                     {technique.kind} • Rank{" "}
-                    {technique.ranks?.value ?? technique.rank_id}
+                    {technique.rankValue ?? "N/D"}
                   </p>
                 </div>
                 <Button asChild variant="outline">

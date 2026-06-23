@@ -109,7 +109,7 @@ Represents one-time, activation, and upkeep-per-turn costs.
 | --- | --- | --- | --- |
 | id | uuid | Yes | Cost PK |
 | technique_id | uuid | Yes | FK to Techniques |
-| resource | text | Yes | Example: CK, HP |
+| resource | text | Yes | Example: CK, HP, AG |
 | amount | numeric | Yes | Cost value |
 | frequency | text | Yes | ONE_TIME, ACTIVATION, PER_TURN |
 | created_at | timestamptz | Yes | Creation timestamp |

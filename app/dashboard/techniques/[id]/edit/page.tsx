@@ -1,10 +1,20 @@
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
+import {
+  COST_FREQUENCIES,
+  COST_RESOURCES,
+  EFFECT_KINDS,
+  EFFECT_OPERATIONS,
+  PRICE_CONTEXTS,
+  TARGET_SCOPES,
+} from "@/lib/modules/techniques/constants";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireKageProfile } from "@/lib/access-control";
-import { TechniqueForm } from "@/components/techniques/technique-form";
-import { createClient } from "@/lib/supabase/server";
+import { JutsuForm } from "@/components/techniques/jutsu-form";
+import { SummoningForm } from "@/components/techniques/summoning-form";
+import { catalogsRepository } from "@/server/repositories/catalogs.repository";
+import { buildTechniquesService } from "@/server/services/techniques.service";
 
 type TechniquePageProps = {
   readonly params: Promise<{ id: string }>;
@@ -27,37 +37,21 @@ export default function EditTechniquePage({ params }: TechniquePageProps) {
 async function EditTechniqueContent({ params }: TechniquePageProps) {
   await requireKageProfile();
   const { id } = await params;
-  const supabase = await createClient();
+  const service = await buildTechniquesService();
 
-  const [techniqueResult, rankResult, typeResult, targetResult, escapeResult] = await Promise.all([
-    supabase
-      .from("techniques")
-      .select("id,kind,technique_type_id,name,rank_id,link,observations")
-      .eq("id", id)
-      .maybeSingle(),
-    supabase
-      .from("ranks")
-      .select("id,value")
-      .order("value", { ascending: true }),
-    supabase
-      .from("technique_types")
-      .select("id,code,name")
-      .order("name", { ascending: true }),
-    supabase
-      .from("targets")
-      .select("id,code,description")
-      .order("code", { ascending: true }),
-    supabase
-      .from("escapes")
-      .select("id,code,description")
-      .order("code", { ascending: true }),
+  const [techniqueAggregate, ranks, techniqueTypes, targets, escapes] = await Promise.all([
+    service.getById(id),
+    catalogsRepository.listRankOptions(),
+    catalogsRepository.listTechniqueTypeOptions(),
+    catalogsRepository.listTargetOptions(),
+    catalogsRepository.listEscapeOptions(),
   ]);
 
-  if (techniqueResult.error || !techniqueResult.data) {
+  if (!techniqueAggregate) {
     notFound();
   }
 
-  if (rankResult.error || typeResult.error || targetResult.error || escapeResult.error) {
+  if (!ranks.length || !techniqueTypes.length || !targets.length || !escapes.length) {
     return (
       <div className="flex-1 w-full flex flex-col gap-6">
         <div className="space-y-2">
@@ -82,98 +76,44 @@ async function EditTechniqueContent({ params }: TechniquePageProps) {
     );
   }
 
-  const technique = techniqueResult.data;
+  const technique = techniqueAggregate;
+  const FormComponent = technique.kind === "SUMMONING" ? SummoningForm : JutsuForm;
+  const title = technique.kind === "SUMMONING" ? "Editar invocação" : "Editar jutsu";
 
-  const [costsResult, pricesResult, limitsResult, effectsResult, valuesResult, targetsResult, escapesResult] =
-    await Promise.all([
-      supabase.from("technique_costs").select("resource,amount,frequency").eq("technique_id", id),
-      supabase
-        .from("technique_prices")
-        .select("price_context,amount,notes")
-        .eq("technique_id", id)
-        .order("created_at", { ascending: true }),
-      supabase.from("technique_limits").select("*").eq("technique_id", id).maybeSingle(),
-      supabase
-        .from("technique_effects")
-        .select("id,target_scope,affected_attribute,effect_kind,operation")
-        .eq("technique_id", id)
-        .order("execution_order", { ascending: true, nullsFirst: false }),
-      supabase.from("technique_effect_values").select("*"),
-      supabase.from("technique_targets").select("target_id").eq("technique_id", id),
-      supabase.from("technique_escapes").select("escape_id").eq("technique_id", id),
-    ]);
-
-  if (
-    costsResult.error ||
-    pricesResult.error ||
-    limitsResult.error ||
-    effectsResult.error ||
-    valuesResult.error ||
-    targetsResult.error ||
-    escapesResult.error
-  ) {
-    return (
-      <div className="flex-1 w-full flex flex-col gap-6">
-        <div className="space-y-2">
-          <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
-            KAGE Techniques
-          </p>
-          <h1 className="text-3xl font-bold">Editar técnica</h1>
-        </div>
-        <Card>
-          <CardHeader>
-            <CardTitle>Falha ao carregar dados da técnica</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Não foi possível montar os dados relacionados para edição.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  const effectValuesMap = new Map(
-    (valuesResult.data ?? []).map((item) => [item.effect_id, item]),
-  );
-
-  const initialEffects = (effectsResult.data ?? []).map((effect) => {
-    const value = effectValuesMap.get(effect.id);
-
-    if (value?.value_type === "TEXT") {
+  const initialEffects = techniqueAggregate.effects.map((effect) => {
+    if (effect.value?.valueType === "TEXT") {
       return {
-        targetScope: effect.target_scope,
-        affectedAttribute: effect.affected_attribute,
-        effectKind: effect.effect_kind,
-        operation: effect.operation,
+        targetScope: effect.targetScope as (typeof TARGET_SCOPES)[number],
+        affectedAttribute: effect.affectedAttribute,
+        effectKind: effect.effectKind as (typeof EFFECT_KINDS)[number],
+        operation: effect.operation as (typeof EFFECT_OPERATIONS)[number],
         valueType: "TEXT" as const,
         valueNumeric: "",
-        valueText: value.value_text ?? "",
+        valueText: effect.value.valueText,
         valueToken: "",
       };
     }
 
-    if (value?.value_type === "TOKEN") {
+    if (effect.value?.valueType === "TOKEN") {
       return {
-        targetScope: effect.target_scope,
-        affectedAttribute: effect.affected_attribute,
-        effectKind: effect.effect_kind,
-        operation: effect.operation,
+        targetScope: effect.targetScope as (typeof TARGET_SCOPES)[number],
+        affectedAttribute: effect.affectedAttribute,
+        effectKind: effect.effectKind as (typeof EFFECT_KINDS)[number],
+        operation: effect.operation as (typeof EFFECT_OPERATIONS)[number],
         valueType: "TOKEN" as const,
         valueNumeric: "",
         valueText: "",
-        valueToken: value.value_token ?? "",
+        valueToken: effect.value.valueToken,
       };
     }
 
     return {
-      targetScope: effect.target_scope,
-      affectedAttribute: effect.affected_attribute,
-      effectKind: effect.effect_kind,
-      operation: effect.operation,
+      targetScope: effect.targetScope as (typeof TARGET_SCOPES)[number],
+      affectedAttribute: effect.affectedAttribute,
+      effectKind: effect.effectKind as (typeof EFFECT_KINDS)[number],
+      operation: effect.operation as (typeof EFFECT_OPERATIONS)[number],
       valueType: "NUMERIC" as const,
-      valueNumeric: value?.value_numeric != null ? String(value.value_numeric) : "",
+      valueNumeric: typeof effect.value?.valueNumeric === "number" ? String(effect.value.valueNumeric) : "",
       valueText: "",
       valueToken: "",
     };
@@ -185,10 +125,9 @@ async function EditTechniqueContent({ params }: TechniquePageProps) {
         <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
           KAGE Techniques
         </p>
-        <h1 className="text-3xl font-bold">Editar técnica</h1>
+        <h1 className="text-3xl font-bold">{title}</h1>
         <p className="text-sm text-muted-foreground">
-          Ajuste dados principais e blocos opcionais sem perder compatibilidade
-          com técnicas legadas.
+          Ajuste dados principais e blocos opcionais com um formulário específico para o tipo desta técnica.
         </p>
       </div>
 
@@ -197,50 +136,50 @@ async function EditTechniqueContent({ params }: TechniquePageProps) {
           <CardTitle>{technique.name}</CardTitle>
         </CardHeader>
         <CardContent>
-          <TechniqueForm
+          <FormComponent
             mode="edit"
             techniqueId={technique.id}
-            rankOptions={rankResult.data ?? []}
-            techniqueTypeOptions={typeResult.data ?? []}
-            targetOptions={targetResult.data ?? []}
-            escapeOptions={escapeResult.data ?? []}
+            rankOptions={ranks}
+            techniqueTypeOptions={techniqueTypes}
+            targetOptions={targets}
+            escapeOptions={escapes}
             initialValues={{
-              techniqueTypeId: technique.technique_type_id,
+              techniqueTypeId: technique.techniqueTypeId,
               name: technique.name,
-              rankId: technique.rank_id,
+              rankId: technique.rankId,
               link: technique.link ?? "",
               observations: technique.observations ?? "",
-              costs: (costsResult.data ?? []).map((item) => ({
-                resource: item.resource,
+              costs: techniqueAggregate.costs.map((item) => ({
+                resource: item.resource as (typeof COST_RESOURCES)[number],
                 amount: String(item.amount),
-                frequency: item.frequency,
+                frequency: item.frequency as (typeof COST_FREQUENCIES)[number],
               })),
-              prices: (pricesResult.data ?? []).map((item) => ({
-                priceContext: item.price_context,
+              prices: techniqueAggregate.prices.map((item) => ({
+                priceContext: item.priceContext as (typeof PRICE_CONTEXTS)[number],
                 amount: String(item.amount),
                 notes: item.notes ?? "",
               })),
-              limitsEnabled: Boolean(limitsResult.data),
+              limitsEnabled: Boolean(techniqueAggregate.limits),
               limits: {
-                hasTurnLimit: limitsResult.data?.has_turn_limit ?? false,
+                hasTurnLimit: techniqueAggregate.limits?.hasTurnLimit ?? false,
                 maxActiveTurns:
-                  limitsResult.data?.max_active_turns != null
-                    ? String(limitsResult.data.max_active_turns)
+                  techniqueAggregate.limits?.maxActiveTurns != null
+                    ? String(techniqueAggregate.limits.maxActiveTurns)
                     : "",
-                hasFightUseLimit: limitsResult.data?.has_fight_use_limit ?? false,
+                hasFightUseLimit: techniqueAggregate.limits?.hasFightUseLimit ?? false,
                 maxUsesPerFight:
-                  limitsResult.data?.max_uses_per_fight != null
-                    ? String(limitsResult.data.max_uses_per_fight)
+                  techniqueAggregate.limits?.maxUsesPerFight != null
+                    ? String(techniqueAggregate.limits.maxUsesPerFight)
                     : "",
-                hasCardUseLimit: limitsResult.data?.has_card_use_limit ?? false,
+                hasCardUseLimit: techniqueAggregate.limits?.hasCardUseLimit ?? false,
                 maxUsesPerCard:
-                  limitsResult.data?.max_uses_per_card != null
-                    ? String(limitsResult.data.max_uses_per_card)
+                  techniqueAggregate.limits?.maxUsesPerCard != null
+                    ? String(techniqueAggregate.limits.maxUsesPerCard)
                     : "",
               },
               effects: initialEffects,
-              targetIds: (targetsResult.data ?? []).map((item) => item.target_id),
-              escapeIds: (escapesResult.data ?? []).map((item) => item.escape_id),
+              targetIds: techniqueAggregate.targetIds,
+              escapeIds: techniqueAggregate.escapeIds,
             }}
           />
         </CardContent>

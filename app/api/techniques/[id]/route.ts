@@ -2,19 +2,11 @@ import { NextRequest } from "next/server";
 
 import { getApiActorContext } from "@/app/api/_shared/auth";
 import { fail, ok } from "@/app/api/_shared/responses";
-import { createClient } from "@/lib/supabase/server";
-import { SupabaseTechniquesRepository } from "@/lib/modules/techniques/repository";
-import { TechniquesService } from "@/lib/modules/techniques/service";
 import { patchTechniqueSchema, techniqueIdParamsSchema } from "@/lib/modules/techniques/schemas";
+import { buildTechniquesService } from "@/server/services/techniques.service";
 import { ApiError } from "@/lib/types/errors";
 
 type Params = { params: Promise<{ id: string }> };
-
-async function buildTechniquesService() {
-  const client = await createClient();
-  const repository = new SupabaseTechniquesRepository(client);
-  return new TechniquesService(repository);
-}
 
 export async function GET(_: NextRequest, { params }: Params) {
   try {

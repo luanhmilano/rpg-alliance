@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import { requireKageProfile } from "@/lib/access-control";
-import { createClient } from "@/lib/supabase/server";
+import { catalogsRepository } from "@/server/repositories/catalogs.repository";
+import { playersService } from "@/server/services/players.service";
 
 function readNullableString(formData: FormData, key: string) {
   const value = formData.get(key);
@@ -26,18 +27,14 @@ export async function updatePlayerAction(formData: FormData) {
     return;
   }
 
-  const supabase = await createClient();
-
-  await supabase
-    .from("players")
-    .update({
-      role_id: roleId,
-      approved: approved === "true",
-      phone: readNullableString(formData, "phone"),
-      village_id: readNullableString(formData, "villageId"),
-      character_id: readNullableString(formData, "characterId"),
-    })
-    .eq("id", playerId);
+  await playersService.updateByKage({
+    playerId,
+    roleId,
+    approved: approved === "true",
+    phone: readNullableString(formData, "phone"),
+    villageId: readNullableString(formData, "villageId"),
+    characterId: readNullableString(formData, "characterId"),
+  });
 
   revalidatePath("/dashboard/kage");
   revalidatePath("/dashboard/profile");
@@ -52,8 +49,7 @@ export async function createVillageAction(formData: FormData) {
     return;
   }
 
-  const supabase = await createClient();
-  await supabase.from("villages").insert({ name });
+  await catalogsRepository.createVillage(name);
 
   revalidatePath("/dashboard/kage");
 }
@@ -68,8 +64,10 @@ export async function updateVillageAction(formData: FormData) {
     return;
   }
 
-  const supabase = await createClient();
-  await supabase.from("villages").update({ name }).eq("id", villageId);
+  await catalogsRepository.updateVillage({
+    villageId,
+    name,
+  });
 
   revalidatePath("/dashboard/kage");
 }
@@ -82,8 +80,7 @@ export async function deleteVillageAction(formData: FormData) {
     return;
   }
 
-  const supabase = await createClient();
-  await supabase.from("villages").delete().eq("id", villageId);
+  await catalogsRepository.deleteVillage(villageId);
 
   revalidatePath("/dashboard/kage");
 }
@@ -96,11 +93,7 @@ export async function createCharacterAction(formData: FormData) {
     return;
   }
 
-  const supabase = await createClient();
-  await supabase.from("characters").insert({
-    name,
-    avatar_url: readNullableString(formData, "avatarUrl"),
-  });
+  await catalogsRepository.createCharacter(name, readNullableString(formData, "avatarUrl"));
 
   revalidatePath("/dashboard/kage");
 }
@@ -115,14 +108,11 @@ export async function updateCharacterAction(formData: FormData) {
     return;
   }
 
-  const supabase = await createClient();
-  await supabase
-    .from("characters")
-    .update({
-      name,
-      avatar_url: readNullableString(formData, "avatarUrl"),
-    })
-    .eq("id", characterId);
+  await catalogsRepository.updateCharacter({
+    characterId,
+    name,
+    avatarUrl: readNullableString(formData, "avatarUrl"),
+  });
 
   revalidatePath("/dashboard/kage");
 }
@@ -135,8 +125,7 @@ export async function deleteCharacterAction(formData: FormData) {
     return;
   }
 
-  const supabase = await createClient();
-  await supabase.from("characters").delete().eq("id", characterId);
+  await catalogsRepository.deleteCharacter(characterId);
 
   revalidatePath("/dashboard/kage");
 }

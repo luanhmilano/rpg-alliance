@@ -55,7 +55,8 @@ export function LoginForm({
       throw profileError;
     }
 
-    if (!profile || profile.approved !== true) {
+    const approvedRow = profile as { approved?: boolean } | null;
+    if (!approvedRow || approvedRow.approved !== true) {
       return "/pending";
     }
 

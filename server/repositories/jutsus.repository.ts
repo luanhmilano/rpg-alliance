@@ -30,7 +30,9 @@ export class JutsusRepository {
       kind: "JUTSU",
       techniqueTypeId: row.techniqueTypeId,
       techniqueTypeCode,
+      techniqueTypeName: row.techniqueTypeName,
       rankId: row.rankId,
+      rankValue: row.rankValue,
       name: row.name,
       link: row.link,
       observations: row.observations,
@@ -52,6 +54,10 @@ export class JutsusRepository {
   public async getJutsus(): Promise<JutsuModel[]> {
     const rows = await techniquesRepository.listWithTypeCodeByKind("JUTSU");
     return rows.map((row) => this.toJutsuModel(row));
+  }
+
+  public async getJutsuById(techniqueId: string): Promise<JutsuModel | null> {
+    return this.getJutsuByTechniqueId(techniqueId);
   }
 
   public async createJutsu(jutsu: CreateJutsuInput): Promise<JutsuModel | null> {
@@ -81,4 +87,8 @@ export async function getJutsus(): Promise<JutsuModel[]> {
 
 export async function createJutsu(jutsu: CreateJutsuInput): Promise<JutsuModel | null> {
   return jutsusRepository.createJutsu(jutsu);
+}
+
+export async function getJutsuById(techniqueId: string): Promise<JutsuModel | null> {
+  return jutsusRepository.getJutsuById(techniqueId);
 }

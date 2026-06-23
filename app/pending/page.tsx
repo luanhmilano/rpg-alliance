@@ -6,7 +6,7 @@ import { getCurrentProfile, requireAuthenticatedUser } from "@/lib/access-contro
 
 export default function PendingPage() {
   return (
-    <Suspense fallback={<div className="text-sm text-muted-foreground">Loading status...</div>}>
+    <Suspense fallback={<div className="text-sm text-muted-foreground">Carregando status...</div>}>
       <PendingContent />
     </Suspense>
   );

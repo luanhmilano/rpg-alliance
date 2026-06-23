@@ -6,7 +6,7 @@ export const TECHNIQUE_TYPE_CODES = [
 	"DOJUTSU",
 	"SUMMONING",
 ] as const;
-export const COST_RESOURCES = ["CK", "HP"] as const;
+export const COST_RESOURCES = ["CK", "HP", "AG"] as const;
 export const COST_FREQUENCIES = ["ONE_TIME", "ACTIVATION", "PER_TURN"] as const;
 export const PRICE_CONTEXTS = [
 	"TECHNIQUE_PURCHASE",

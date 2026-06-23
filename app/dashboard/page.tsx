@@ -1,15 +1,14 @@
 import { Suspense } from "react";
 import { requireApprovedProfile } from "@/lib/access-control";
 import { KageWorkspace } from "./_components/kage-workspace";
-import { JutsusSection } from "./_components/jutsus-section";
+import { TechniquesSection } from "./_components/techniques-section";
 
-export default async function DashboardPage() {
+async function DashboardContent() {
   const profile = await requireApprovedProfile();
 
   return (
     <div className="flex-1 w-full flex flex-col gap-8">
       <div className="space-y-1">
-        <h1 className="font-bold text-3xl">JUTSUS</h1>
         <p className="text-sm text-muted-foreground">
           Role: {profile.role} | Access: {profile.approval_status}
         </p>
@@ -20,14 +19,31 @@ export default async function DashboardPage() {
       <div>
         <Suspense 
           fallback={
-            <div className="h-64 w-full bg-primary/5 border border-primary/10 rounded-md animate-pulse flex items-center justify-center">
-               <p className="text-sm text-muted-foreground">Carregando pergaminhos de jutsus...</p>
+            <div className="h-96 w-full bg-primary/5 border border-primary/10 rounded-md animate-pulse flex items-center justify-center">
+               <p className="text-sm text-muted-foreground">Carregando pergaminhos e contratos...</p>
             </div>
           }
         >
-          <JutsusSection role={profile.role} />
+          <TechniquesSection role={profile.role} />
         </Suspense>
       </div>
     </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex-1 w-full flex flex-col gap-8">
+          <div className="space-y-1">
+            <div className="h-4 w-52 rounded bg-primary/10 animate-pulse" />
+          </div>
+          <div className="h-96 w-full bg-primary/5 border border-primary/10 rounded-md animate-pulse" />
+        </div>
+      }
+    >
+      <DashboardContent />
+    </Suspense>
   );
 }
